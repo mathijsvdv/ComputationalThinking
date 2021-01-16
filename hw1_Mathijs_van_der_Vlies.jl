@@ -457,10 +457,17 @@ Let's create a vector `v` of random numbers of length `n=100`.
 """
 
 # ╔═╡ 7fcd6230-ee09-11ea-314f-a542d00d582e
-n = 100
+n = 50
 
 # ╔═╡ 7fdb34dc-ee09-11ea-366b-ffe10d1aa845
-v = rand(n)
+begin
+	v = zeros(n)
+	v[2:2:n] .= 1
+end
+
+
+# ╔═╡ 17669e52-57f4-11eb-3738-9bdc8384476b
+length(v)
 
 # ╔═╡ 7fe9153e-ee09-11ea-15b3-6f24fcc20734
 md"_Feel free to experiment with different values!_"
@@ -474,7 +481,7 @@ You've seen some colored lines in this notebook to visualize arrays. Can you mak
 """
 
 # ╔═╡ 01070e28-ee0f-11ea-1928-a7919d452bdd
-
+colored_line(v)
 
 # ╔═╡ 7522f81e-ee1c-11ea-35af-a17eb257ff1a
 md"Try changing `n` and `v` around. Notice that you can run the cell `v = rand(n)` again to regenerate new random values."
@@ -489,10 +496,21 @@ A better solution is to use the *closest* value that is inside the vector. Effec
 👉 Write a function `extend(v, i)` that checks whether the position $i$ is inside `1:n`. If so, return the $i$th component of `v`; otherwise, return the nearest end value.
 """
 
+# ╔═╡ 54322020-57f4-11eb-3225-e1f81cbcabf8
+@which 2 in 1:n
+
 # ╔═╡ 802bec56-ee09-11ea-043e-51cf1db02a34
-function extend(v, i)
-	
-	return missing
+begin
+	function extend(v, i)
+		n = length(v)
+		if i < 1
+			i = 1
+		elseif i > n
+			i = n
+		end
+
+		return v[i]
+	end
 end
 
 # ╔═╡ b7f3994c-ee1b-11ea-211a-d144db8eafc2
@@ -530,9 +548,15 @@ md"""
 """
 
 # ╔═╡ 807e5662-ee09-11ea-3005-21fdcc36b023
-function blur_1D(v, l)
-	
-	return missing
+begin
+	function blur_1D(v, l, i)
+		return mean([extend(v, i+j) for j in -l:l])
+	end
+
+
+	function blur_1D(v, l)
+		return [blur_1D(v, l, i) for i in 1:length(v)]
+	end
 end
 
 # ╔═╡ 808deca8-ee09-11ea-0ee3-1586fa1ce282
@@ -557,8 +581,16 @@ md"""
 👉 Apply the box blur to your vector `v`. Show the original and the new vector by creating two cells that call `colored_line`. Make the parameter $\ell$ interactive, and call it `l_box` instead of just `l` to avoid a variable naming conflict.
 """
 
-# ╔═╡ ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+# ╔═╡ ca681710-57f7-11eb-03ab-67c4f325da07
+@bind l_box Slider(1:50, show_value=true)
 
+# ╔═╡ 643cfff0-57f7-11eb-1446-675769f55c17
+colored_line(v)
+
+# ╔═╡ ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+begin
+	colored_line(blur_1D(v, l_box))
+end
 
 # ╔═╡ 80ab64f4-ee09-11ea-29b4-498112ed0799
 md"""
@@ -1460,7 +1492,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═f6e2cb2a-ee07-11ea-06ee-1b77e34c1e91
 # ╟─f6ef2c2e-ee07-11ea-13a8-2512e7d94426
 # ╟─f6fc1312-ee07-11ea-39a0-299b67aee3d8
-# ╟─774b4ce6-ee1b-11ea-2b48-e38ee25fc89b
+# ╠═774b4ce6-ee1b-11ea-2b48-e38ee25fc89b
 # ╠═7e4aeb70-ee1b-11ea-100f-1952ba66f80f
 # ╟─6a05f568-ee1b-11ea-3b6c-83b6ada3680f
 # ╟─f70823d2-ee07-11ea-2bb3-01425212aaf9
@@ -1477,11 +1509,13 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─7fc8ee1c-ee09-11ea-1382-ad21d5373308
 # ╠═7fcd6230-ee09-11ea-314f-a542d00d582e
 # ╠═7fdb34dc-ee09-11ea-366b-ffe10d1aa845
+# ╠═17669e52-57f4-11eb-3738-9bdc8384476b
 # ╟─7fe9153e-ee09-11ea-15b3-6f24fcc20734
 # ╟─80108d80-ee09-11ea-0368-31546eb0d3cc
 # ╠═01070e28-ee0f-11ea-1928-a7919d452bdd
 # ╟─7522f81e-ee1c-11ea-35af-a17eb257ff1a
 # ╟─801d90c0-ee09-11ea-28d6-61b806de26dc
+# ╠═54322020-57f4-11eb-3225-e1f81cbcabf8
 # ╠═802bec56-ee09-11ea-043e-51cf1db02a34
 # ╟─b7f3994c-ee1b-11ea-211a-d144db8eafc2
 # ╠═803905b2-ee09-11ea-2d52-e77ff79693b0
@@ -1490,12 +1524,14 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─806e5766-ee0f-11ea-1efc-d753cd83d086
 # ╟─38da843a-ee0f-11ea-01df-bfa8b1317d36
 # ╟─9bde9f92-ee0f-11ea-27f8-ffef5fce2b3c
-# ╟─45c4da9a-ee0f-11ea-2c5b-1f6704559137
+# ╠═45c4da9a-ee0f-11ea-2c5b-1f6704559137
 # ╟─bcf98dfc-ee1b-11ea-21d0-c14439500971
 # ╟─80664e8c-ee09-11ea-0702-711bce271315
 # ╠═807e5662-ee09-11ea-3005-21fdcc36b023
 # ╟─808deca8-ee09-11ea-0ee3-1586fa1ce282
 # ╟─809f5330-ee09-11ea-0e5b-415044b6ac1f
+# ╠═ca681710-57f7-11eb-03ab-67c4f325da07
+# ╠═643cfff0-57f7-11eb-1446-675769f55c17
 # ╠═ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
 # ╟─ea435e58-ee11-11ea-3785-01af8dd72360
 # ╟─80ab64f4-ee09-11ea-29b4-498112ed0799
