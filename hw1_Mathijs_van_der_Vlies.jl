@@ -606,10 +606,41 @@ Again, we need to take care about what happens if $v_{i -n }$ falls off the end 
 👉 Write a function `convolve_vector(v, k)` that performs this convolution. You need to think of the vector $k$ as being *centred* on the position $i$. So $n$ in the above formula runs between $-\ell$ and $\ell$, where $2\ell + 1$ is the length of the vector $k$. You will need to do the necessary manipulation of indices.
 """
 
+# ╔═╡ 4dc38e12-5833-11eb-39ae-2917a8ab3a55
+2 ÷ 2
+
+# ╔═╡ 00080720-5831-11eb-3711-b3ffdc0dc2f8
+begin
+	struct Kernel
+		k
+		l::Int64
+		function Kernel(k)
+			
+			l = (length(k) - 1) ÷ 2
+			return new(k, l)
+		end
+	end
+
+	function Base.getindex(k::Kernel, n)
+		
+		return k.k[k.l + 1 + n]
+	end
+end
+
 # ╔═╡ 28e20950-ee0c-11ea-0e0a-b5f2e570b56e
-function convolve_vector(v, k)
+begin
+	function convolve_vector(v, k::Kernel, i)
+		
+		l = k.l
+		return sum(extend(v, i-n)*k[n] for n in -l:l)
+	end
+
+	function convolve_vector(v, k::Kernel)
+		
+		return [convolve_vector(v, k, i) for i in 1:length(v)]
+	end
 	
-	return missing
+	convolve_vector(v, k) = convolve_vector(v, Kernel(k))
 end
 
 # ╔═╡ 93284f92-ee12-11ea-0342-833b1a30625c
@@ -621,6 +652,13 @@ end
 
 # ╔═╡ 5eea882c-ee13-11ea-0d56-af81ecd30a4a
 colored_line(test_convolution)
+
+# ╔═╡ bc77d3e0-5836-11eb-26f6-811df0806933
+test_convolution_2 = let
+	v = [0.0, 0.5, 0.0, 1.0]
+	k = [-1, 2, -2]
+	convolve_vector(v, k)
+end
 
 # ╔═╡ cf73f9f8-ee12-11ea-39ae-0107e9107ef5
 md"_Edit the cell above, or create a new cell with your own test cases!_"
@@ -640,22 +678,50 @@ and then **normalize** so that the sum of the resulting kernel is 1.
 For simplicity you can take $\sigma=1$.
 """
 
-# ╔═╡ 1c8b4658-ee0c-11ea-2ede-9b9ed7d3125e
-function gaussian_kernel(n)
+# ╔═╡ aa112cf0-5837-11eb-2916-b9955bb12067
+begin
+	abstract type Distribution end
+	struct Gaussian1D <: Distribution
+		μ::Number
+		σ2::Number
+	end
+	Gaussian1D(μ) = Gaussian1D(μ, 1)
+	Gaussian1D() = Gaussian1D(0)
 	
-	return missing
+	pdf(g::Gaussian1D, x) = 1 / sqrt(2pi*g.σ2) * exp(-(x - g.μ)^2 / (2g.σ2))
+end
+
+# ╔═╡ bc604250-5838-11eb-0025-5975df831734
+
+
+# ╔═╡ 1c8b4658-ee0c-11ea-2ede-9b9ed7d3125e
+begin
+	function distribution_kernel(distr::Distribution, n)
+		l = (n - 1) ÷ 2
+		sample = [pdf(distr, x) for x in -l:l]
+		return sample / sum(sample)
+	end
+	
+	function gaussian_kernel(n)
+		return distribution_kernel(Gaussian1D(), n)
+	end
 end
 
 # ╔═╡ f8bd22b8-ee14-11ea-04aa-ab16fd01826e
 md"Let's test your kernel function!"
 
 # ╔═╡ 2a9dd06a-ee13-11ea-3f84-67bb309c77a8
-gaussian_kernel_size_1D = 3 # change this value, or turn me into a slider!
+@bind gaussian_kernel_size_1D Slider(3:2:51, show_value=true) # change this value, or turn me into a slider!
+
+# ╔═╡ 3a748950-583c-11eb-2dfb-c92a00ad67cd
+k = gaussian_kernel(gaussian_kernel_size_1D)
+
+# ╔═╡ 835a572e-583c-11eb-22ca-67590cd2d5fd
+sum(k)
 
 # ╔═╡ 38eb92f6-ee13-11ea-14d7-a503ac04302e
 test_gauss_1D_a = let
 	v = random_vect
-	k = gaussian_kernel(gaussian_kernel_size_1D)
 	
 	if k !== missing
 		convolve_vector(v, k)
@@ -668,7 +734,6 @@ colored_line(test_gauss_1D_a)
 # ╔═╡ 24c21c7c-ee14-11ea-1512-677980db1288
 test_gauss_1D_b = let
 	v = create_bar()
-	k = gaussian_kernel(gaussian_kernel_size_1D)
 	
 	if k !== missing
 		convolve_vector(v, k)
@@ -1535,17 +1600,24 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
 # ╟─ea435e58-ee11-11ea-3785-01af8dd72360
 # ╟─80ab64f4-ee09-11ea-29b4-498112ed0799
+# ╠═4dc38e12-5833-11eb-39ae-2917a8ab3a55
+# ╠═00080720-5831-11eb-3711-b3ffdc0dc2f8
 # ╠═28e20950-ee0c-11ea-0e0a-b5f2e570b56e
 # ╟─e9aadeee-ee1d-11ea-3525-95f6ba5fda31
 # ╟─5eea882c-ee13-11ea-0d56-af81ecd30a4a
 # ╠═93284f92-ee12-11ea-0342-833b1a30625c
+# ╠═bc77d3e0-5836-11eb-26f6-811df0806933
 # ╟─cf73f9f8-ee12-11ea-39ae-0107e9107ef5
 # ╟─7ffd14f8-ee1d-11ea-0343-b54fb0333aea
 # ╟─80b7566a-ee09-11ea-3939-6fab470f9ec8
+# ╠═aa112cf0-5837-11eb-2916-b9955bb12067
+# ╠═bc604250-5838-11eb-0025-5975df831734
 # ╠═1c8b4658-ee0c-11ea-2ede-9b9ed7d3125e
 # ╟─f8bd22b8-ee14-11ea-04aa-ab16fd01826e
 # ╠═2a9dd06a-ee13-11ea-3f84-67bb309c77a8
-# ╟─b424e2aa-ee14-11ea-33fa-35491e0b9c9d
+# ╠═3a748950-583c-11eb-2dfb-c92a00ad67cd
+# ╠═835a572e-583c-11eb-22ca-67590cd2d5fd
+# ╠═b424e2aa-ee14-11ea-33fa-35491e0b9c9d
 # ╠═38eb92f6-ee13-11ea-14d7-a503ac04302e
 # ╟─bc1c20a4-ee14-11ea-3525-63c9fa78f089
 # ╠═24c21c7c-ee14-11ea-1512-677980db1288
