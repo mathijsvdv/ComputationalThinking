@@ -689,54 +689,11 @@ end
 # ╔═╡ bc604250-5838-11eb-0025-5975df831734
 
 
-# ╔═╡ 1c8b4658-ee0c-11ea-2ede-9b9ed7d3125e
-begin
-	function distribution_kernel(distr::Distribution, n)
-		l = (n - 1) ÷ 2
-		sample = [pdf(distr, x) for x in -l:l]
-		return sample / sum(sample)
-	end
-	
-	function gaussian_kernel(n)
-		return distribution_kernel(Gaussian1D(), n)
-	end
-end
-
 # ╔═╡ f8bd22b8-ee14-11ea-04aa-ab16fd01826e
 md"Let's test your kernel function!"
 
 # ╔═╡ 2a9dd06a-ee13-11ea-3f84-67bb309c77a8
 @bind gaussian_kernel_size_1D Slider(3:2:51, show_value=true) # change this value, or turn me into a slider!
-
-# ╔═╡ 3a748950-583c-11eb-2dfb-c92a00ad67cd
-k = gaussian_kernel(gaussian_kernel_size_1D)
-
-# ╔═╡ 835a572e-583c-11eb-22ca-67590cd2d5fd
-sum(k)
-
-# ╔═╡ 38eb92f6-ee13-11ea-14d7-a503ac04302e
-test_gauss_1D_a = let
-	v = random_vect
-	
-	if k !== missing
-		convolve_vector(v, k)
-	end
-end
-
-# ╔═╡ b424e2aa-ee14-11ea-33fa-35491e0b9c9d
-colored_line(test_gauss_1D_a)
-
-# ╔═╡ 24c21c7c-ee14-11ea-1512-677980db1288
-test_gauss_1D_b = let
-	v = create_bar()
-	
-	if k !== missing
-		convolve_vector(v, k)
-	end
-end
-
-# ╔═╡ bc1c20a4-ee14-11ea-3525-63c9fa78f089
-colored_line(test_gauss_1D_b)
 
 # ╔═╡ b01858b6-edf3-11ea-0826-938d33c19a43
 md"""
@@ -823,11 +780,17 @@ x = (-el:el for el in (1, 3))
 
 # ╔═╡ 46206310-58b3-11eb-3e26-338d307085a3
 begin
-	struct KernelND{T,N}
+	function get_l(sz::NTuple{N, Integer}) where N
+		return (sz .- 1) .÷ 2
+	end
+	
+	abstract type AbstractKernel end
+	
+	struct KernelND{T,N} <: AbstractKernel
 		K::AbstractArray{T,N}
 		l::NTuple{N,Integer}
 		function KernelND(K)
-			l = (size(K) .- 1) .÷ 2
+			l = get_l(size(K))
 			return new{eltype(K),ndims(K)}(K, l)
 		end
 	end
@@ -840,30 +803,34 @@ begin
 		return K.K[l + one + I]
 	end
 	
-	function Base.CartesianIndices(K::KernelND)
-		l = K.l
+	function cartesian_indices_from_l(l::NTuple{N, Integer}) where N		
 		ranges = Tuple(-el:el for el in l)
-		return CartesianIndices(ranges)		
+		return CartesianIndices(ranges)	
 	end
 	
+	function Base.CartesianIndices(K::KernelND)
+		l = K.l
+		return cartesian_indices_from_l(l)
+	end	
 end
-
-# ╔═╡ 1c324532-58ba-11eb-2b3a-0b5c51b91c88
-sum(rand(3, 2) .* rand(3, 2))
 
 # ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 begin
-	function convolve_image(M::AbstractMatrix, K::KernelND, I::CartesianIndex)
-		window = [extend_mat(M, I-KI) for KI in CartesianIndices(K)]
+	function convolve_window(window::AbstractMatrix, K::KernelND)
 		return sum(window .* K.K)
 	end
 	
-	function convolve_image(M::AbstractMatrix, K::KernelND)
-		return [convolve_image(M, K, I) for I in CartesianIndices(M)]
+	function convolve_image(M::AbstractMatrix, K::AbstractKernel, I::CartesianIndex)
+		window = [extend_mat(M, I-KI) for KI in CartesianIndices(K)]
+		return convolve_window(window, K)
 	end
 	
-	function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
-		return convolve_image(M, KernelND(K))
+	function convolve_image(M::AbstractMatrix, K::AbstractMatrix, I::CartesianIndex)
+		return convolve_image(M, KernelND(K), I)
+	end
+	
+	function convolve_image(M::AbstractMatrix, K)
+		return [convolve_image(M, K, I) for I in CartesianIndices(M)]
 	end
 end
 
@@ -915,9 +882,92 @@ $$G(x,y)=\frac{1}{2\pi \sigma^2}e^{\frac{-(x^2+y^2)}{2\sigma^2}}$$
 """
 
 # ╔═╡ aad67fd0-ee15-11ea-00d4-274ec3cda3a3
-function with_gaussian_blur(image)
+begin
+	abstract type DistributionND end
+	struct IidGaussianND <: DistributionND
+		σ2::Number
+	end
+	IidGaussianND() = IidGaussianND(1) 
 	
-	return missing
+	# Generalizing to N dimensions, so using a vector for x. For two dimensions that would come down to a 2-element vector representing x and y in the function $G(x, y)$
+	function pdf(g::IidGaussianND, x::AbstractVector)
+		return 1 / sqrt(2pi*g.σ2) * exp(-sum(x.^2) / (2g.σ2))
+	end
+end
+
+# ╔═╡ 1c8b4658-ee0c-11ea-2ede-9b9ed7d3125e
+begin
+	function distribution_kernel(distr::Distribution, n)
+		l = (n - 1) ÷ 2
+		sample = [pdf(distr, x) for x in -l:l]
+		return sample / sum(sample)
+	end
+	
+	function gaussian_kernel(n)
+		return distribution_kernel(Gaussian1D(), n)
+	end
+end
+
+# ╔═╡ 3a748950-583c-11eb-2dfb-c92a00ad67cd
+k = gaussian_kernel(gaussian_kernel_size_1D)
+
+# ╔═╡ 835a572e-583c-11eb-22ca-67590cd2d5fd
+sum(k)
+
+# ╔═╡ 38eb92f6-ee13-11ea-14d7-a503ac04302e
+test_gauss_1D_a = let
+	v = random_vect
+	
+	if k !== missing
+		convolve_vector(v, k)
+	end
+end
+
+# ╔═╡ b424e2aa-ee14-11ea-33fa-35491e0b9c9d
+colored_line(test_gauss_1D_a)
+
+# ╔═╡ 24c21c7c-ee14-11ea-1512-677980db1288
+test_gauss_1D_b = let
+	v = create_bar()
+	
+	if k !== missing
+		convolve_vector(v, k)
+	end
+end
+
+# ╔═╡ bc1c20a4-ee14-11ea-3525-63c9fa78f089
+colored_line(test_gauss_1D_b)
+
+# ╔═╡ 3ac4bf30-58cb-11eb-0641-278562a2d3ed
+begin
+	function distribution_kernel(
+			distr::DistributionND, 
+			sz::NTuple{N, Integer}
+			) where N
+		
+		l = get_l(sz)
+		indices = cartesian_indices_from_l(l)
+		
+		sample = [pdf(distr, [Tuple(x)...]) for x in indices]
+		return sample / sum(sample)
+	end
+	
+	function gaussian_nd_kernel(sz::NTuple{N, Integer}) where N
+		return distribution_kernel(IidGaussianND(), sz)
+	end
+end
+
+# ╔═╡ 2c1c6de0-58ce-11eb-25a9-11e4facf11cb
+function with_gaussian_blur(image, sz)
+	K = gaussian_nd_kernel(sz)
+	
+	return convolve_image(image, K)
+end
+
+# ╔═╡ 2fb91ca0-58ce-11eb-2c9f-35963d67374d
+function with_gaussian_blur(image)
+	sz = (3, 3)
+	return with_gaussian_blur(image, sz)
 end
 
 # ╔═╡ 8ae59674-ee18-11ea-3815-f50713d0fa08
@@ -966,10 +1016,46 @@ $$G_\text{total} = \sqrt{G_x^2 + G_y^2}.$$
 For simplicity you can choose one of the "channels" (colours) in the image to apply this to.
 """
 
-# ╔═╡ 9eeb876c-ee15-11ea-1794-d3ea79f47b75
-function with_sobel_edge_detect(image)
+# ╔═╡ 4b1ac6e0-58d0-11eb-1d60-85989139db1d
+begin
+	struct SobelEdgeDetectionKernel{T} <: AbstractKernel
+		K_x::KernelND{T, 2}
+		K_y::KernelND{T, 2}
+	end
 	
-	return missing
+	function SobelEdgeDetectionKernel(K_x::AbstractMatrix, K_y::AbstractMatrix)
+		return SobelEdgeDetectionKernel(KernelND(K_x), KernelND(K_y))
+	end
+	
+	function SobelEdgeDetectionKernel()
+		K_x = [1, 2, 1] .* [1 0 -1]
+		K_y = [1, 0, -1] .* [1 2 1]
+		return SobelEdgeDetectionKernel(K_x, K_y)
+	end	
+	
+	function Base.CartesianIndices(K::SobelEdgeDetectionKernel)
+		return CartesianIndices(K.K_x)
+	end
+end
+
+# ╔═╡ d96f0770-58d6-11eb-3ece-95304256a9dc
+Base.sqrt(x::Gray{T}) where T = Gray(sqrt(T(x)))
+
+# ╔═╡ 7d7b6f70-58d2-11eb-0e87-4722405b25f5
+# We need only implement another method for `convolve_window`, the rest of the code can stay the same
+function convolve_window(window::AbstractMatrix, K::SobelEdgeDetectionKernel)
+	G_x = convolve_window(window, K.K_x)
+	G_y = convolve_window(window, K.K_y)
+	G_total = sqrt(G_x^2 + G_y^2)
+	
+	return G_total
+end
+
+# ╔═╡ 4518d7f0-58d0-11eb-074f-991ab4a99afa
+function with_sobel_edge_detect(image)
+	K = SobelEdgeDetectionKernel()
+	
+	return convolve_image(image, K)
 end
 
 # ╔═╡ 1b85ee76-ee10-11ea-36d7-978340ef61e6
@@ -1541,6 +1627,9 @@ with_gaussian_blur(gauss_camera_image)
 # ╔═╡ 1ff6b5cc-ee19-11ea-2ca8-7f00c204f587
 sobel_camera_image = Gray.(process_raw_camera_data(sobel_raw_camera_data));
 
+# ╔═╡ 9387be70-58d4-11eb-154c-45f73dad0036
+sobel_camera_image
+
 # ╔═╡ 1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
 with_sobel_edge_detect(sobel_camera_image)
 
@@ -1705,7 +1794,6 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═27b9a772-58b7-11eb-346b-77fd6a79d610
 # ╠═ad6c8850-58b8-11eb-355e-c751ebdac8e9
 # ╠═46206310-58b3-11eb-3e26-338d307085a3
-# ╠═1c324532-58ba-11eb-2b3a-0b5c51b91c88
 # ╠═8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 # ╟─0cabed84-ee1e-11ea-11c1-7d8a4b4ad1af
 # ╟─5a5135c6-ee1e-11ea-05dc-eb0c683c2ce5
@@ -1716,15 +1804,22 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─6e53c2e6-ee1e-11ea-21bd-c9c05381be07
 # ╠═e7f8b41a-ee25-11ea-287a-e75d33fbd98b
 # ╟─8a335044-ee19-11ea-0255-b9391246d231
-# ╠═7c50ea80-ee15-11ea-328f-6b4e4ff20b7e
+# ╟─7c50ea80-ee15-11ea-328f-6b4e4ff20b7e
 # ╠═aad67fd0-ee15-11ea-00d4-274ec3cda3a3
+# ╠═3ac4bf30-58cb-11eb-0641-278562a2d3ed
+# ╠═2c1c6de0-58ce-11eb-25a9-11e4facf11cb
+# ╠═2fb91ca0-58ce-11eb-2c9f-35963d67374d
 # ╟─8ae59674-ee18-11ea-3815-f50713d0fa08
 # ╟─94c0798e-ee18-11ea-3212-1533753eabb6
 # ╠═a75701c4-ee18-11ea-2863-d3042e71a68b
 # ╟─f461f5f2-ee18-11ea-3d03-95f57f9bf09e
 # ╟─7c6642a6-ee15-11ea-0526-a1aac4286cdd
-# ╠═9eeb876c-ee15-11ea-1794-d3ea79f47b75
+# ╠═4b1ac6e0-58d0-11eb-1d60-85989139db1d
+# ╠═d96f0770-58d6-11eb-3ece-95304256a9dc
+# ╠═7d7b6f70-58d2-11eb-0e87-4722405b25f5
+# ╠═4518d7f0-58d0-11eb-074f-991ab4a99afa
 # ╟─1a0324de-ee19-11ea-1d4d-db37f4136ad3
+# ╠═9387be70-58d4-11eb-154c-45f73dad0036
 # ╠═1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
 # ╟─1ff6b5cc-ee19-11ea-2ca8-7f00c204f587
 # ╟─0001f782-ee0e-11ea-1fb4-2b5ef3d241e2
