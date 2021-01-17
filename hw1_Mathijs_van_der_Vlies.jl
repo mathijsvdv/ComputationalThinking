@@ -502,12 +502,7 @@ A better solution is to use the *closest* value that is inside the vector. Effec
 # ╔═╡ 802bec56-ee09-11ea-043e-51cf1db02a34
 begin
 	function extend(v, i)
-		n = length(v)
-		if i < 1
-			i = 1
-		elseif i > n
-			i = n
-		end
+		i = myclamp(i, 1, length(v))
 
 		return v[i]
 	end
@@ -770,18 +765,8 @@ md"""
 begin
 	function extend_mat(M::AbstractMatrix, i, j)
 		n_i, n_j = size(M)
-
-		if i < 1
-			i = 1
-		elseif i > n_i
-			i = n_i
-		end
-
-		if j < 1
-			j = 1
-		elseif j > n_j
-			j = n_j
-		end
+		i = myclamp(i, 1, n_i)
+		j = myclamp(j, 1, n_j)
 
 		return M[i, j]
 	end
