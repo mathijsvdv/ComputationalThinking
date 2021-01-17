@@ -767,9 +767,28 @@ md"""
 """
 
 # ╔═╡ 7c2ec6c6-ee15-11ea-2d7d-0d9401a5e5d1
-function extend_mat(M::AbstractMatrix, i, j)
+begin
+	function extend_mat(M::AbstractMatrix, i, j)
+		n_i, n_j = size(M)
+
+		if i < 1
+			i = 1
+		elseif i > n_i
+			i = n_i
+		end
+
+		if j < 1
+			j = 1
+		elseif j > n_j
+			j = n_j
+		end
+
+		return M[i, j]
+	end
 	
-	return missing
+	function extend_mat(M::AbstractMatrix, I::CartesianIndex)
+		return extend_mat(M, I[1], I[2])
+	end
 end
 
 # ╔═╡ 9afc4dca-ee16-11ea-354f-1d827aaa61d2
@@ -802,10 +821,65 @@ md"""
 👉 Implement a function `convolve_image(M, K)`. 
 """
 
-# ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
-function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
+# ╔═╡ d22d13b0-58b0-11eb-086b-192f4296b748
+begin
+	A = rand(3, 2)
+	indices = [i for i in CartesianIndices(A)]
+end
+
+# ╔═╡ a56804e0-58b3-11eb-25c1-793cc789d717
+eltype(A)
+
+# ╔═╡ 27b9a772-58b7-11eb-346b-77fd6a79d610
+Base.CartesianIndices
+
+# ╔═╡ ad6c8850-58b8-11eb-355e-c751ebdac8e9
+x = (-el:el for el in (1, 3))
+
+# ╔═╡ 46206310-58b3-11eb-3e26-338d307085a3
+begin
+	struct KernelND{T,N}
+		K::AbstractArray{T,N}
+		l::NTuple{N,Integer}
+		function KernelND(K)
+			l = (size(K) .- 1) .÷ 2
+			return new{eltype(K),ndims(K)}(K, l)
+		end
+	end
 	
-	return missing
+	Base.convert(::Type{KernelND{T,N}}, K::AbstractArray{T,N}) where {T, N} = KernelND(K)
+
+	function Base.getindex(K::KernelND, I::CartesianIndex)
+		one = CartesianIndex(repeat([1], length(I)))
+		l = CartesianIndex(K.l...)
+		return K.K[l + one + I]
+	end
+	
+	function Base.CartesianIndices(K::KernelND)
+		l = K.l
+		ranges = Tuple(-el:el for el in l)
+		return CartesianIndices(ranges)		
+	end
+	
+end
+
+# ╔═╡ 1c324532-58ba-11eb-2b3a-0b5c51b91c88
+sum(rand(3, 2) .* rand(3, 2))
+
+# ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
+begin
+	function convolve_image(M::AbstractMatrix, K::KernelND, I::CartesianIndex)
+		window = [extend_mat(M, I-KI) for KI in CartesianIndices(K)]
+		return sum(window .* K.K)
+	end
+	
+	function convolve_image(M::AbstractMatrix, K::KernelND)
+		return [convolve_image(M, K, I) for I in CartesianIndices(M)]
+	end
+	
+	function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
+		return convolve_image(M, KernelND(K))
+	end
 end
 
 # ╔═╡ 5a5135c6-ee1e-11ea-05dc-eb0c683c2ce5
@@ -816,10 +890,16 @@ test_image_with_border = [get(small_image, (i, j), Gray(0)) for (i,j) in Iterato
 
 # ╔═╡ 275a99c8-ee1e-11ea-0a76-93e3618c9588
 K_test = [
-	0   0  0
-	1/2 0  1/2
-	0   0  0
+	-1/9   -1/9  -1/9
+	-1/9 2.0  -1/9
+	-1/9   -1/9  -1/9
 ]
+
+# ╔═╡ 902bd620-58bc-11eb-013a-6907d938f174
+begin
+	kernel_test = KernelND(K_test)
+	k_indices = CartesianIndices(kernel_test)
+end
 
 # ╔═╡ 42dfa206-ee1e-11ea-1fcd-21671042064c
 convolve_image(test_image_with_border, K_test)
@@ -1622,7 +1702,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─bc1c20a4-ee14-11ea-3525-63c9fa78f089
 # ╠═24c21c7c-ee14-11ea-1512-677980db1288
 # ╟─27847dc4-ee0a-11ea-0651-ebbbb3cfd58c
-# ╟─b01858b6-edf3-11ea-0826-938d33c19a43
+# ╠═b01858b6-edf3-11ea-0826-938d33c19a43
 # ╟─7c1bc062-ee15-11ea-30b1-1b1e76520f13
 # ╠═7c2ec6c6-ee15-11ea-2d7d-0d9401a5e5d1
 # ╟─649df270-ee24-11ea-397e-79c4355e38db
@@ -1635,11 +1715,18 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─efd1ceb4-ee1c-11ea-350e-f7e3ea059024
 # ╟─3cd535e4-ee26-11ea-2482-fb4ad43dda19
 # ╟─7c41f0ca-ee15-11ea-05fb-d97a836659af
+# ╠═d22d13b0-58b0-11eb-086b-192f4296b748
+# ╠═a56804e0-58b3-11eb-25c1-793cc789d717
+# ╠═27b9a772-58b7-11eb-346b-77fd6a79d610
+# ╠═ad6c8850-58b8-11eb-355e-c751ebdac8e9
+# ╠═46206310-58b3-11eb-3e26-338d307085a3
+# ╠═1c324532-58ba-11eb-2b3a-0b5c51b91c88
 # ╠═8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 # ╟─0cabed84-ee1e-11ea-11c1-7d8a4b4ad1af
 # ╟─5a5135c6-ee1e-11ea-05dc-eb0c683c2ce5
 # ╟─577c6daa-ee1e-11ea-1275-b7abc7a27d73
 # ╠═275a99c8-ee1e-11ea-0a76-93e3618c9588
+# ╠═902bd620-58bc-11eb-013a-6907d938f174
 # ╠═42dfa206-ee1e-11ea-1fcd-21671042064c
 # ╟─6e53c2e6-ee1e-11ea-21bd-c9c05381be07
 # ╠═e7f8b41a-ee25-11ea-287a-e75d33fbd98b
