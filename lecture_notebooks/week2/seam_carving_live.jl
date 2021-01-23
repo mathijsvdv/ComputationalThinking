@@ -17,7 +17,7 @@ function find_energy_map(energy)
     for i in sz[1]-1:-1:1, j in sz[2]
         left = max(1, j-1)
         right = min(j+1, sz[2])
-        local_energy, next_element = findmin(energy_map[i+1, left:right])
+        local_energy, next_element = findmin(@view energy_map[i+1, left:right])
         
         # Minimal energy to bottom
         energy_map[i,j] += local_energy + energy[i,j]
@@ -52,7 +52,7 @@ function find_seam(energy)
 
     energy_map, next_elements = find_energy_map(energy)
 
-    _, min_element = findmin(energy_map[1,:])
+    _, min_element = findmin(@view energy_map[1,:])
 
     return find_seam_at(next_elements, min_element)
 end
