@@ -715,14 +715,21 @@ md"""
 # ╔═╡ 795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 	least_energies = least_energy_matrix(energies)
-	m, n = size(least_energies)
 	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	return greedy_seam(least_energies, starting_pixel::Int)
 end
 
 # ╔═╡ 51df0c98-f3c5-11ea-25b8-af41dc182bac
 md"Compute shrunk image: $(@bind shrink_bottomup CheckBox())"
+
+# ╔═╡ 2883bfe0-5e36-11eb-3af6-e340bba7fe0c
+
+
+# ╔═╡ 27f5a520-5e40-11eb-35a8-bf3dd9f16df6
+dali = load(download("https://wisetoast.com/wp-content/uploads/2015/10/The-Persistence-of-Memory-salvador-deli-painting.jpg"))
+
+# ╔═╡ 2b236572-5e40-11eb-169e-ad2e19870232
+md"Compute shrunk Dali: $(@bind shrink_dali CheckBox())"
 
 # ╔═╡ 0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 if student.kerberos_id === "jazz"
@@ -810,6 +817,17 @@ end
 # ╔═╡ 0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
 if shrink_bottomup
 	bottomup_carved[bottomup_n]
+end
+
+# ╔═╡ 44caee80-5e40-11eb-173f-658f037503ac
+if shrink_dali
+	dali_carved = shrink_n(dali, 200, seam_from_precomputed_least_energy)
+	md"Shrink by: $(@bind dali_n Slider(1:200, show_value=true))"
+end
+
+# ╔═╡ 4604ce10-5e40-11eb-1f6a-2b3f2a4b4ab5
+if shrink_dali
+	dali_carved[dali_n]
 end
 
 # ╔═╡ ef26374a-f388-11ea-0b4e-67314a9a9094
@@ -1121,9 +1139,14 @@ bigbreak
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 # ╠═51df0c98-f3c5-11ea-25b8-af41dc182bac
+# ╟─2883bfe0-5e36-11eb-3af6-e340bba7fe0c
 # ╠═51e28596-f3c5-11ea-2237-2b72bbfaa001
 # ╠═0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
 # ╟─946b69a0-f3a2-11ea-2670-819a5dafe891
+# ╠═27f5a520-5e40-11eb-35a8-bf3dd9f16df6
+# ╠═2b236572-5e40-11eb-169e-ad2e19870232
+# ╠═44caee80-5e40-11eb-173f-658f037503ac
+# ╠═4604ce10-5e40-11eb-1f6a-2b3f2a4b4ab5
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
