@@ -425,12 +425,6 @@ which is one of $j-1$, $j$ or $j+1$, up to boundary conditions.
 Return these two values in a tuple.
 """
 
-# ╔═╡ 457914d0-5dbc-11eb-1b4d-a7fb98504a6b
-nan
-
-# ╔═╡ 59044920-5dbc-11eb-383b-6d35b4300b5d
-NaN
-
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
@@ -482,13 +476,6 @@ Now use the `least_energy` function you defined above to define the `recursive_s
 This will give you the method used in the lecture to perform [exhaustive search of all possible paths](https://youtu.be/rpB6zQNsbQU?t=839).
 """
 
-# ╔═╡ d1c67e50-5dc1-11eb-34b4-777978b01e65
-begin
-	a = [1, 2]
-	b = [3, 4]
-	[a; b]
-end
-
 # ╔═╡ ce2ff170-5dbe-11eb-1126-c5265692f909
 # Aside from being inefficient because it enumerates all paths, the `least_energy`
 # function also doesn't remember the full path taken, meaning that we have to
@@ -520,11 +507,14 @@ function least_energy_path(energies, i, j)
 	return min_energy, [j; min_path]
 end
 
-# ╔═╡ 750790f0-5dc6-11eb-126c-07a8cf48c585
-
+# ╔═╡ 319885d0-5dc2-11eb-1f42-31ec1482cb9c
+@benchmark least_energy(greedy_test, 1, 7)
 
 # ╔═╡ 7e990f42-5dc6-11eb-2979-ff4da38ad4d1
 md"We see that `least_energy_path` is three times slower than `least_energy`"
+
+# ╔═╡ 513d42e0-5dc2-11eb-1952-c5c2cde1bb6f
+@benchmark least_energy_path(greedy_test, 1, 7)
 
 # ╔═╡ 85033040-f372-11ea-2c31-bb3147de3c0d
 function recursive_seam(energies, starting_pixel)
@@ -565,7 +555,7 @@ md"""
 # ╔═╡ 6d993a5c-f373-11ea-0dde-c94e3bbd1552
 exhaustive_observation = md"""
 - In order to find the path of minimum energy at (i, j), the algorithm considers all neighbors of j at i+1 and run the algorithm on these points recursively. Only at i=n (the number of rows) does the algorithm stop. This effectively searches for all possible paths.
-- The number of possible paths grows approximately at rate O(3^n): at every row i, there is a new option for 3 (sometimes 2, depending on the boundary) neighbors.
+- The number of possible paths grows approximately at rate $\mathcal{O}(3^n)$: at every row i, there is a new option for 3 (sometimes 2, depending on the boundary) neighbors.
 """
 
 # ╔═╡ ea417c2a-f373-11ea-3bb0-b1b5754f2fac
@@ -598,22 +588,65 @@ You are expected to read and understand the [documentation on dictionaries](http
 3. Access contents of the dictionary by a key.
 """
 
-# ╔═╡ b1d09bc8-f320-11ea-26bb-0101c9a204e2
-function memoized_least_energy(energies, i, j, memory)
-	m, n = size(energies)
+# ╔═╡ 48c03d00-5e1e-11eb-3bf5-c546cc1c001d
+begin
+	memory = Dict{Tuple{Int,Int}, Float64}()
+	memory[(1, 2)] = 5.6
+	memory
+end
+
+# ╔═╡ a4597cd0-5e1e-11eb-2d18-9dfdfc385ef2
+get(memory, (3, 2)) do
+	return 1 + 2
+end
+
+# ╔═╡ 6321b552-5e20-11eb-3d69-431ea675d72f
+begin
+	function _compute_memoized_least_energy(energies, i, j, memory)
+		n, m = size(energies)
+		energy = energies[i, j]
+		if i == n
+			return energy, 0
+		end
+
+		left = max(j-1, 1)
+		right = min(j+1, m)
+		min_energies = [memoized_least_energy(energies, i+1, j, memory) 
+						for j in left:right]
+		min_energy, arg_min_energy = findmin([e[1] for e in min_energies])
+		min_j = (left:right)[arg_min_energy]
+		min_energy += energy
+
+		return min_energy, min_j
+	end
 	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	function memoized_least_energy(energies, i, j, memory)
+		return get!(memory, (i, j)) do
+			return _compute_memoized_least_energy(energies, i, j, memory)
+		end
+	end
+	
+	function memoized_least_energy(energies, i, j)
+		memory = Dict{Tuple{Int,Int}, Tuple{Float64,Int}}()
+		return memoized_least_energy(energies, i, j, memory)
+	end
 end
 
 # ╔═╡ 3e8b0868-f3bd-11ea-0c15-011bbd6ac051
 function recursive_memoized_seam(energies, starting_pixel)
-	memory = Dict{Tuple{Int,Int}, Float64}() # location => least energy.
-	                                         # pass this every time you call memoized_least_energy.
-	m, n = size(energies)
+	memory = Dict{Tuple{Int,Int}, Tuple{Float64,Int}}()
+	n, m = size(energies)
+	seam = zeros(Int, n)
 	
-	# Replace the following line with your code.
-	[rand(1:starting_pixel) for i=1:m]
+	j = starting_pixel
+	seam[1] = j
+	
+	for i in 1:(n-1)
+		_, j = memoized_least_energy(energies, i, j, memory)
+		seam[i+1] = j
+	end
+	
+	return seam	
 end
 
 # ╔═╡ 4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
@@ -630,21 +663,63 @@ But in our particular case, we can use a matrix as a storage, since a matrix is 
 Write a variation of `matrix_memoized_least_energy` and `matrix_memoized_seam` which use a matrix as storage.
 """
 
+# ╔═╡ 2625e9d0-5e22-11eb-168f-c1537eff18e2
+A = [1 2; 3 4]
+
 # ╔═╡ c8724b5e-f3bd-11ea-0034-b92af21ca12d
-function matrix_memoized_least_energy(energies, i, j, memory)
-	m, n = size(energies)
+begin
+	function _compute_matrix_memoized_least_energy(energies, i, j, memory)
+		n, m = size(energies)
+		energy = energies[i, j]
+		if i == n
+			return energy, 0
+		end
+
+		left = max(j-1, 1)
+		right = min(j+1, m)
+		min_energies = [matrix_memoized_least_energy(energies, i+1, j, memory) 
+						for j in left:right]
+		min_energy, arg_min_energy = findmin([e[1] for e in min_energies])
+		min_j = (left:right)[arg_min_energy]
+		min_energy += energy
+
+		return min_energy, min_j
+	end
 	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	function matrix_memoized_least_energy(energies, i, j, memory)
+		if memory[i, j] == (0.0, 0)
+			min_energy, min_j = _compute_matrix_memoized_least_energy(
+				energies, i, j, memory
+			)
+			memory[i, j] = (min_energy, min_j)
+			return min_energy, min_j
+		else
+			return memory[i, j]
+		end
+	end
+	
+	function matrix_memoized_least_energy(energies, i, j)
+		memory = fill((0.0, 0), size(energies))
+		return memoized_least_energy(energies, i, j, memory)
+	end
 end
 
 # ╔═╡ be7d40e2-f320-11ea-1b56-dff2a0a16e8d
 function matrix_memoized_seam(energies, starting_pixel)
-	memory = zeros(size(energies)) # use this as storage -- intially it's all zeros
-	m, n = size(energies)
+	memory = fill((0.0, 0), size(energies)) # use this as storage -- intially it's all zeros
 	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	n, m = size(energies)
+	seam = zeros(Int, n)
+	
+	j = starting_pixel
+	seam[1] = j
+	
+	for i in 1:(n-1)
+		_, j = matrix_memoized_least_energy(energies, i, j, memory)
+		seam[i+1] = j
+	end
+	
+	return seam	
 end
 
 # ╔═╡ 507f3870-f3c5-11ea-11f6-ada3bb087634
@@ -798,12 +873,6 @@ if compute_access
 	tracked.accesses[]
 end
 
-# ╔═╡ 319885d0-5dc2-11eb-1f42-31ec1482cb9c
-@benchmark least_energy(tracked, 1, 7)
-
-# ╔═╡ 513d42e0-5dc2-11eb-1952-c5c2cde1bb6f
-@benchmark least_energy_path(tracked, 1, 7)
-
 # ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
 if shrink_recursive
 	recursive_carved = shrink_n(pika, 3, recursive_seam)
@@ -824,6 +893,15 @@ end
 if shrink_recursive
 	@benchmark shrink_n(pika, 3, recursive_seam_path)
 end
+
+# ╔═╡ b3d41bd0-5e27-11eb-3210-236acc4a28d9
+@benchmark shrink_n(pika, 3, recursive_memoized_seam)
+
+# ╔═╡ 44fb0890-5e27-11eb-12c0-13f0aa3eb6dd
+@benchmark shrink_n(pika, 3, matrix_memoized_seam)
+
+# ╔═╡ 7577c0ce-5e27-11eb-121f-73e2f13759a8
+@benchmark shrink_n(pika, 3, recursive_seam)
 
 # ╔═╡ ffc17f40-f380-11ea-30ee-0fe8563c0eb1
 hint(text) = Markdown.MD(Markdown.Admonition("hint", "Hint", [text]))
@@ -1009,7 +1087,7 @@ bigbreak
 # ╠═730655a0-5db9-11eb-2ccc-b5ffe1349e9f
 # ╠═7eafb770-5db9-11eb-107a-b9b721484747
 # ╟─6f52c1a2-f395-11ea-0c8a-138a77f03803
-# ╠═2a7e49b8-f395-11ea-0058-013e51baa554
+# ╟─2a7e49b8-f395-11ea-0058-013e51baa554
 # ╟─7ddee6fc-f394-11ea-31fc-5bd665a65bef
 # ╟─980b1104-f394-11ea-0948-21002f26ee25
 # ╟─9945ae78-f395-11ea-1d78-cf6ad19606c8
@@ -1022,8 +1100,6 @@ bigbreak
 # ╟─9101d5a0-f371-11ea-1c04-f3f43b96ca4a
 # ╠═ddba07dc-f3b7-11ea-353e-0f67713727fc
 # ╠═73b52fd6-f3b9-11ea-14ed-ebfcab1ce6aa
-# ╠═457914d0-5dbc-11eb-1b4d-a7fb98504a6b
-# ╠═59044920-5dbc-11eb-383b-6d35b4300b5d
 # ╠═8ec27ef8-f320-11ea-2573-c97b7b908cb7
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -1031,10 +1107,8 @@ bigbreak
 # ╟─18e0fd8a-f3bc-11ea-0713-fbf74d5fa41a
 # ╟─cbf29020-f3ba-11ea-2cb0-b92836f3d04b
 # ╟─8bc930f0-f372-11ea-06cb-79ced2834720
-# ╠═d1c67e50-5dc1-11eb-34b4-777978b01e65
 # ╠═ce2ff170-5dbe-11eb-1126-c5265692f909
 # ╠═319885d0-5dc2-11eb-1f42-31ec1482cb9c
-# ╠═750790f0-5dc6-11eb-126c-07a8cf48c585
 # ╠═7e990f42-5dc6-11eb-2979-ff4da38ad4d1
 # ╠═513d42e0-5dc2-11eb-1952-c5c2cde1bb6f
 # ╠═85033040-f372-11ea-2c31-bb3147de3c0d
@@ -1046,17 +1120,23 @@ bigbreak
 # ╠═a88a0f20-5dc6-11eb-3208-3112a1d3199b
 # ╠═0613a2b0-5dc6-11eb-0e1a-a5241253c521
 # ╟─c572f6ce-f372-11ea-3c9a-e3a21384edca
-# ╠═6d993a5c-f373-11ea-0dde-c94e3bbd1552
-# ╠═ea417c2a-f373-11ea-3bb0-b1b5754f2fac
+# ╟─6d993a5c-f373-11ea-0dde-c94e3bbd1552
+# ╟─ea417c2a-f373-11ea-3bb0-b1b5754f2fac
 # ╟─56a7f954-f374-11ea-0391-f79b75195f4d
-# ╠═b1d09bc8-f320-11ea-26bb-0101c9a204e2
+# ╠═48c03d00-5e1e-11eb-3bf5-c546cc1c001d
+# ╠═a4597cd0-5e1e-11eb-2d18-9dfdfc385ef2
+# ╠═6321b552-5e20-11eb-3d69-431ea675d72f
 # ╠═3e8b0868-f3bd-11ea-0c15-011bbd6ac051
-# ╠═4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
+# ╟─4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
 # ╠═4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 # ╠═6e73b1da-f3c5-11ea-145f-6383effe8a89
 # ╟─cf39fa2a-f374-11ea-0680-55817de1b837
+# ╠═2625e9d0-5e22-11eb-168f-c1537eff18e2
 # ╠═c8724b5e-f3bd-11ea-0034-b92af21ca12d
 # ╠═be7d40e2-f320-11ea-1b56-dff2a0a16e8d
+# ╠═b3d41bd0-5e27-11eb-3210-236acc4a28d9
+# ╠═44fb0890-5e27-11eb-12c0-13f0aa3eb6dd
+# ╠═7577c0ce-5e27-11eb-121f-73e2f13759a8
 # ╟─507f3870-f3c5-11ea-11f6-ada3bb087634
 # ╠═50829af6-f3c5-11ea-04a8-0535edd3b0aa
 # ╠═9e56ecfa-f3c5-11ea-2e90-3b1839d12038
