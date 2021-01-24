@@ -425,9 +425,8 @@ which is one of $j-1$, $j$ or $j+1$, up to boundary conditions.
 Return these two values in a tuple.
 """
 
-# ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
-## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
-function least_energy(energies, i, j)
+# ╔═╡ 1692bbf0-5e28-11eb-0ad7-a52c2c6c75a8
+function least_energy(energies, i, j, get_least_energy::Function, args...)
 	n, m = size(energies)
 	energy = energies[i, j]
 	if i == n
@@ -436,12 +435,18 @@ function least_energy(energies, i, j)
 	
 	left = max(j-1, 1)
 	right = min(j+1, m)
-	min_energies = [least_energy(energies, i+1, j) for j in left:right]
+	min_energies = [get_least_energy(energies, i+1, j, args...) for j in left:right]
 	min_energy, arg_min_energy = findmin([e[1] for e in min_energies])
 	min_j = (left:right)[arg_min_energy]
 	min_energy += energy
 	
 	return min_energy, min_j
+end
+
+# ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
+## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
+function least_energy(energies, i, j)
+	return least_energy(energies, i, j, least_energy)
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -517,7 +522,7 @@ md"We see that `least_energy_path` is three times slower than `least_energy`"
 @benchmark least_energy_path(greedy_test, 1, 7)
 
 # ╔═╡ 85033040-f372-11ea-2c31-bb3147de3c0d
-function recursive_seam(energies, starting_pixel)
+function recursive_seam(energies, starting_pixel, get_least_energy::Function, args...)
 	n, m = size(energies)
 	seam = zeros(Int, n)
 	
@@ -525,11 +530,16 @@ function recursive_seam(energies, starting_pixel)
 	seam[1] = j
 	
 	for i in 1:(n-1)
-		_, j = least_energy(energies, i, j)
+		_, j = get_least_energy(energies, i, j, args...)
 		seam[i+1] = j
 	end
 	
-	return seam	
+	return seam
+end
+
+# ╔═╡ 74300922-5e28-11eb-3514-bf227b6510d8
+function recursive_seam(energies, starting_pixel)
+	return recursive_seam(energies, starting_pixel, least_energy)
 end
 
 # ╔═╡ eb5fb2b0-5dc5-11eb-1dbd-a194b24751e0
@@ -601,28 +611,10 @@ get(memory, (3, 2)) do
 end
 
 # ╔═╡ 6321b552-5e20-11eb-3d69-431ea675d72f
-begin
-	function _compute_memoized_least_energy(energies, i, j, memory)
-		n, m = size(energies)
-		energy = energies[i, j]
-		if i == n
-			return energy, 0
-		end
-
-		left = max(j-1, 1)
-		right = min(j+1, m)
-		min_energies = [memoized_least_energy(energies, i+1, j, memory) 
-						for j in left:right]
-		min_energy, arg_min_energy = findmin([e[1] for e in min_energies])
-		min_j = (left:right)[arg_min_energy]
-		min_energy += energy
-
-		return min_energy, min_j
-	end
-	
+begin	
 	function memoized_least_energy(energies, i, j, memory)
 		return get!(memory, (i, j)) do
-			return _compute_memoized_least_energy(energies, i, j, memory)
+			least_energy(energies, i, j, memoized_least_energy, memory)
 		end
 	end
 	
@@ -635,18 +627,7 @@ end
 # ╔═╡ 3e8b0868-f3bd-11ea-0c15-011bbd6ac051
 function recursive_memoized_seam(energies, starting_pixel)
 	memory = Dict{Tuple{Int,Int}, Tuple{Float64,Int}}()
-	n, m = size(energies)
-	seam = zeros(Int, n)
-	
-	j = starting_pixel
-	seam[1] = j
-	
-	for i in 1:(n-1)
-		_, j = memoized_least_energy(energies, i, j, memory)
-		seam[i+1] = j
-	end
-	
-	return seam	
+	return recursive_seam(energies, starting_pixel, memoized_least_energy, memory)
 end
 
 # ╔═╡ 4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
@@ -668,28 +649,11 @@ A = [1 2; 3 4]
 
 # ╔═╡ c8724b5e-f3bd-11ea-0034-b92af21ca12d
 begin
-	function _compute_matrix_memoized_least_energy(energies, i, j, memory)
-		n, m = size(energies)
-		energy = energies[i, j]
-		if i == n
-			return energy, 0
-		end
-
-		left = max(j-1, 1)
-		right = min(j+1, m)
-		min_energies = [matrix_memoized_least_energy(energies, i+1, j, memory) 
-						for j in left:right]
-		min_energy, arg_min_energy = findmin([e[1] for e in min_energies])
-		min_j = (left:right)[arg_min_energy]
-		min_energy += energy
-
-		return min_energy, min_j
-	end
 	
 	function matrix_memoized_least_energy(energies, i, j, memory)
 		if memory[i, j] == (0.0, 0)
-			min_energy, min_j = _compute_matrix_memoized_least_energy(
-				energies, i, j, memory
+			min_energy, min_j = least_energy(
+				energies, i, j, matrix_memoized_least_energy, memory
 			)
 			memory[i, j] = (min_energy, min_j)
 			return min_energy, min_j
@@ -707,19 +671,9 @@ end
 # ╔═╡ be7d40e2-f320-11ea-1b56-dff2a0a16e8d
 function matrix_memoized_seam(energies, starting_pixel)
 	memory = fill((0.0, 0), size(energies)) # use this as storage -- intially it's all zeros
-	
-	n, m = size(energies)
-	seam = zeros(Int, n)
-	
-	j = starting_pixel
-	seam[1] = j
-	
-	for i in 1:(n-1)
-		_, j = matrix_memoized_least_energy(energies, i, j, memory)
-		seam[i+1] = j
-	end
-	
-	return seam	
+	return recursive_seam(
+		energies, starting_pixel, matrix_memoized_least_energy, memory
+	)
 end
 
 # ╔═╡ 507f3870-f3c5-11ea-11f6-ada3bb087634
@@ -1100,6 +1054,7 @@ bigbreak
 # ╟─9101d5a0-f371-11ea-1c04-f3f43b96ca4a
 # ╠═ddba07dc-f3b7-11ea-353e-0f67713727fc
 # ╠═73b52fd6-f3b9-11ea-14ed-ebfcab1ce6aa
+# ╠═1692bbf0-5e28-11eb-0ad7-a52c2c6c75a8
 # ╠═8ec27ef8-f320-11ea-2573-c97b7b908cb7
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -1112,6 +1067,7 @@ bigbreak
 # ╠═7e990f42-5dc6-11eb-2979-ff4da38ad4d1
 # ╠═513d42e0-5dc2-11eb-1952-c5c2cde1bb6f
 # ╠═85033040-f372-11ea-2c31-bb3147de3c0d
+# ╠═74300922-5e28-11eb-3514-bf227b6510d8
 # ╠═eb5fb2b0-5dc5-11eb-1dbd-a194b24751e0
 # ╠═1d55333c-f393-11ea-229a-5b1e9cabea6a
 # ╠═d88bc272-f392-11ea-0efd-15e0e2b2cd4e
