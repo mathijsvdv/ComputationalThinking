@@ -222,6 +222,9 @@ end
 # ╔═╡ 70955aca-ed6e-11ea-2330-89b4d20b1795
 matrix_to_vecvec([6 7; 8 9])
 
+# ╔═╡ 04a8b0b0-5e79-11eb-111f-a38381a5b736
+@benchmark matrix_to_vecvec([6 7; 8 9])
+
 # ╔═╡ 5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 begin
 	colored_line(x::Vector{<:Real}) = Gray.(Float64.((hcat(x)')))
@@ -273,6 +276,18 @@ end
 
 
 # mean_colors(philip)
+
+# ╔═╡ 7d564942-5e7a-11eb-26b4-593a9d497a4d
+function mean_colors_mvdv(image)
+	r = mean(ColorTypes.red.(image))
+	g = mean(ColorTypes.green.(image))
+	b = mean(ColorTypes.blue.(image))
+	
+	return RGB(r, g, b)
+end
+
+# ╔═╡ c30444b0-5e7a-11eb-0f4b-cbda9618a98a
+
 
 # ╔═╡ f68d4a36-ee07-11ea-0832-0360530f102e
 md"""
@@ -438,6 +453,9 @@ philip = let
 	decimate(original, 8)
 end
 
+# ╔═╡ 93e9db90-5e7a-11eb-1d5e-0de2bef17390
+@benchmark mean_colors_mvdv(philip)
+
 # ╔═╡ 9751586e-ee0c-11ea-0cbb-b7eda92977c9
 quantize(philip)
 
@@ -552,6 +570,9 @@ function mean_colors(image::Vector)
 	sum.(image) / length(image)
 end
 
+# ╔═╡ 82da7cb0-5e7a-11eb-0df3-dff6de3bcf07
+@benchmark mean_colors(philip)
+
 # ╔═╡ fc49d83c-589b-11eb-3412-cfbf800e851b
 function blur_1D(v, l)
 	extendedV = [extend(v, il) for il in (-l + 1):(length(v) + l)]
@@ -586,6 +607,9 @@ md"""
 
 # ╔═╡ ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
 @bind l_box Slider(0:10, show_value=true)
+
+# ╔═╡ 8657e6d0-5e7e-11eb-0760-afeb462226e2
+colored_line(v)
 
 # ╔═╡ a52c24b8-5893-11eb-256f-75d44613a21d
 colored_line(blur_1D(v, l_box))
@@ -628,6 +652,9 @@ end
 
 # ╔═╡ 5eea882c-ee13-11ea-0d56-af81ecd30a4a
 colored_line(test_convolution)
+
+# ╔═╡ ff033572-5e7f-11eb-0995-4d49da981170
+
 
 # ╔═╡ cf73f9f8-ee12-11ea-39ae-0107e9107ef5
 md"_Edit the cell above, or create a new cell with your own test cases!_"
@@ -1568,6 +1595,7 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─393667ca-edf2-11ea-09c5-c5d292d5e896
 # ╠═9f1c6d04-ed6c-11ea-007b-75e7e780703d
 # ╠═70955aca-ed6e-11ea-2330-89b4d20b1795
+# ╠═04a8b0b0-5e79-11eb-111f-a38381a5b736
 # ╟─e06b7fbc-edf2-11ea-1708-fb32599dded3
 # ╟─5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 # ╟─45815734-ee0a-11ea-2982-595e1fc0e7b1
@@ -1578,6 +1606,10 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─c54ccdea-ee05-11ea-0365-23aaf053b7d7
 # ╠═f6898df6-ee07-11ea-2838-fde9bc739c11
 # ╠═5be9b144-ee0d-11ea-2a8d-8775de265a1d
+# ╠═7d564942-5e7a-11eb-26b4-593a9d497a4d
+# ╠═82da7cb0-5e7a-11eb-0df3-dff6de3bcf07
+# ╠═93e9db90-5e7a-11eb-1d5e-0de2bef17390
+# ╠═c30444b0-5e7a-11eb-0f4b-cbda9618a98a
 # ╟─4d0158d0-ee0d-11ea-17c3-c169d4284acb
 # ╟─f68d4a36-ee07-11ea-0832-0360530f102e
 # ╠═f6991a50-ee07-11ea-0bc4-1d68eb028e6a
@@ -1638,6 +1670,7 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─808deca8-ee09-11ea-0ee3-1586fa1ce282
 # ╟─809f5330-ee09-11ea-0e5b-415044b6ac1f
 # ╠═ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+# ╠═8657e6d0-5e7e-11eb-0760-afeb462226e2
 # ╠═a52c24b8-5893-11eb-256f-75d44613a21d
 # ╟─ea435e58-ee11-11ea-3785-01af8dd72360
 # ╟─80ab64f4-ee09-11ea-29b4-498112ed0799
@@ -1645,6 +1678,7 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─e9aadeee-ee1d-11ea-3525-95f6ba5fda31
 # ╟─5eea882c-ee13-11ea-0d56-af81ecd30a4a
 # ╠═93284f92-ee12-11ea-0342-833b1a30625c
+# ╠═ff033572-5e7f-11eb-0995-4d49da981170
 # ╟─cf73f9f8-ee12-11ea-39ae-0107e9107ef5
 # ╟─7ffd14f8-ee1d-11ea-0343-b54fb0333aea
 # ╟─80b7566a-ee09-11ea-3939-6fab470f9ec8
