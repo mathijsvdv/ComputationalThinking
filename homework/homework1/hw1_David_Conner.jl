@@ -57,8 +57,9 @@ end
 
 # ╔═╡ 74b008f6-ed6b-11ea-291f-b3791d6d1b35
 begin
-	Pkg.add(["Images", "ImageMagick"])
+	Pkg.add(["Images", "ImageMagick", "BenchmarkTools"])
 	using Images
+	using BenchmarkTools
 end
 
 # ╔═╡ 6b30dc38-ed6b-11ea-10f3-ab3f121bf4b8
@@ -165,6 +166,37 @@ end
 
 # ╔═╡ c4761a7e-edf2-11ea-1e75-118e73dadbed
 vecvec_to_matrix([[1,2], [3,4]])
+
+# ╔═╡ 747fec50-5e74-11eb-3d26-dd69aadb3f14
+function vecvec_to_matrix_mvdv(vecvec)
+	
+	return hcat(vecvec...)
+end
+
+# ╔═╡ 6fe6ca40-5e76-11eb-109e-87129b58f13a
+function vecvec_to_matrix_mvdv2(vecvec)
+	n = length(vecvec)
+	m = length(vecvec[1])
+	return reshape(vcat(vecvec...), n, m)
+end
+
+# ╔═╡ 6cf85ce0-5e76-11eb-0f89-13cc8059d05a
+function vecvec_to_matrix_mvdv3(vecvec)
+	
+	return reduce(hcat, vecvec)
+end
+
+# ╔═╡ ee4ec8d0-5e74-11eb-220d-799c4812181c
+@benchmark vecvec_to_matrix([[1,2], [3,4]])
+
+# ╔═╡ e041ad70-5e74-11eb-3250-310d8458ebb8
+@benchmark vecvec_to_matrix_mvdv([[1,2], [3,4]])
+
+# ╔═╡ 86d6c9e0-5e75-11eb-1ed8-2d1a12c36ddd
+@benchmark vecvec_to_matrix_mvdv2([[1,2], [3,4]])
+
+# ╔═╡ 7cb54b20-5e76-11eb-29eb-cd42711f8754
+@benchmark vecvec_to_matrix_mvdv3([[1,2], [3,4]])
 
 # ╔═╡ 393667ca-edf2-11ea-09c5-c5d292d5e896
 md"""
@@ -1525,6 +1557,13 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─22f28dae-edf2-11ea-25b5-11c369ae1253
 # ╠═8c19fb72-ed6c-11ea-2728-3fa9219eddc4
 # ╠═c4761a7e-edf2-11ea-1e75-118e73dadbed
+# ╠═747fec50-5e74-11eb-3d26-dd69aadb3f14
+# ╠═6fe6ca40-5e76-11eb-109e-87129b58f13a
+# ╠═6cf85ce0-5e76-11eb-0f89-13cc8059d05a
+# ╠═ee4ec8d0-5e74-11eb-220d-799c4812181c
+# ╠═e041ad70-5e74-11eb-3250-310d8458ebb8
+# ╠═86d6c9e0-5e75-11eb-1ed8-2d1a12c36ddd
+# ╠═7cb54b20-5e76-11eb-29eb-cd42711f8754
 # ╟─adfbe9b2-ed6c-11ea-09ac-675262f420df
 # ╟─393667ca-edf2-11ea-09c5-c5d292d5e896
 # ╠═9f1c6d04-ed6c-11ea-007b-75e7e780703d
