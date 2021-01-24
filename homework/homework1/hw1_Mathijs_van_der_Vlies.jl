@@ -814,6 +814,9 @@ begin
 	end	
 end
 
+# ╔═╡ 2c3c67ce-5e46-11eb-3c95-6fa6b7f0da32
+RGB(0.1, 0.2, 0.3) .^ [2, 3]
+
 # ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 begin
 	function convolve_window(window::AbstractMatrix, K::KernelND)
@@ -1041,14 +1044,30 @@ end
 # ╔═╡ d96f0770-58d6-11eb-3ece-95304256a9dc
 Base.sqrt(x::Gray{T}) where T = Gray(sqrt(T(x)))
 
+# ╔═╡ fb4c0200-5e4c-11eb-2459-59f4c4174202
+
+
+# ╔═╡ ee0b1f02-5e46-11eb-02ad-0f5431b6c4a1
+brightness(c::AbstractRGB) = mean(
+	(ColorTypes.red(c), ColorTypes.green(c), ColorTypes.blue(c))
+)
+
 # ╔═╡ 7d7b6f70-58d2-11eb-0e87-4722405b25f5
 # We need only implement another method for `convolve_window`, the rest of the code can stay the same
-function convolve_window(window::AbstractMatrix, K::SobelEdgeDetectionKernel)
-	G_x = convolve_window(window, K.K_x)
-	G_y = convolve_window(window, K.K_y)
-	G_total = sqrt(G_x^2 + G_y^2)
+begin
+	function convolve_window(window::AbstractMatrix, K::SobelEdgeDetectionKernel)
+		
+		G_x = convolve_window(window, K.K_x)
+		G_y = convolve_window(window, K.K_y)
+		G_total = sqrt(G_x^2 + G_y^2)
+
+		return G_total
+	end
 	
-	return G_total
+	# @cxor It took me quite a while to get this right. Apparently, to specialize to RGB types, you have to supply the {T} parameter as well. E.g. `isa(img, Matrix{RGB})` will return `false`, whereas `isa(img, Matrix{RGB{T}} where T)` returns `true`
+	function convolve_window(window::Matrix{RGB{T}} where T, K::SobelEdgeDetectionKernel)
+		return convolve_window(Gray.(brightness.(window)), K)
+	end
 end
 
 # ╔═╡ 4518d7f0-58d0-11eb-074f-991ab4a99afa
@@ -1057,6 +1076,30 @@ function with_sobel_edge_detect(image)
 	
 	return convolve_image(image, K)
 end
+
+# ╔═╡ e3307ee0-5e46-11eb-15a5-65f52a6b5339
+img = load(download("https://i.imgur.com/4SRnmkj.png"))
+
+# ╔═╡ 96c720d0-5e4c-11eb-34e4-f14830a0e1f7
+with_sobel_edge_detect(Gray.(brightness.(img)))
+
+# ╔═╡ 150e2d10-5e4f-11eb-3b59-1997f39cf825
+with_sobel_edge_detect(img)
+
+# ╔═╡ d606c500-5e4e-11eb-23e5-a9d91b577e1c
+typeof(RGB(0.1, 0.2, 0.3))
+
+# ╔═╡ e0b41390-5e4e-11eb-069e-734d7d4cba45
+typeof([RGB(0.1, 0.2, 0.3)])
+
+# ╔═╡ 6fcafa20-5e50-11eb-16c5-e5e37342fe61
+isa(img, Matrix{RGB})
+
+# ╔═╡ fcef66e0-5e4e-11eb-26eb-cbb829de1453
+isa(img, Matrix{RGB{T}} where T)
+
+# ╔═╡ 6ecc9cf0-5e50-11eb-195a-19902d60efca
+
 
 # ╔═╡ 1b85ee76-ee10-11ea-36d7-978340ef61e6
 md"""
@@ -1628,7 +1671,7 @@ with_gaussian_blur(gauss_camera_image)
 sobel_camera_image = Gray.(process_raw_camera_data(sobel_raw_camera_data));
 
 # ╔═╡ 9387be70-58d4-11eb-154c-45f73dad0036
-sobel_camera_image
+eltype(sobel_camera_image)
 
 # ╔═╡ 1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
 with_sobel_edge_detect(sobel_camera_image)
@@ -1794,6 +1837,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═27b9a772-58b7-11eb-346b-77fd6a79d610
 # ╠═ad6c8850-58b8-11eb-355e-c751ebdac8e9
 # ╠═46206310-58b3-11eb-3e26-338d307085a3
+# ╠═2c3c67ce-5e46-11eb-3c95-6fa6b7f0da32
 # ╠═8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 # ╟─0cabed84-ee1e-11ea-11c1-7d8a4b4ad1af
 # ╟─5a5135c6-ee1e-11ea-05dc-eb0c683c2ce5
@@ -1816,11 +1860,21 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─7c6642a6-ee15-11ea-0526-a1aac4286cdd
 # ╠═4b1ac6e0-58d0-11eb-1d60-85989139db1d
 # ╠═d96f0770-58d6-11eb-3ece-95304256a9dc
+# ╠═fb4c0200-5e4c-11eb-2459-59f4c4174202
+# ╠═ee0b1f02-5e46-11eb-02ad-0f5431b6c4a1
 # ╠═7d7b6f70-58d2-11eb-0e87-4722405b25f5
 # ╠═4518d7f0-58d0-11eb-074f-991ab4a99afa
-# ╟─1a0324de-ee19-11ea-1d4d-db37f4136ad3
+# ╠═1a0324de-ee19-11ea-1d4d-db37f4136ad3
 # ╠═9387be70-58d4-11eb-154c-45f73dad0036
 # ╠═1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
+# ╠═e3307ee0-5e46-11eb-15a5-65f52a6b5339
+# ╠═96c720d0-5e4c-11eb-34e4-f14830a0e1f7
+# ╠═150e2d10-5e4f-11eb-3b59-1997f39cf825
+# ╠═d606c500-5e4e-11eb-23e5-a9d91b577e1c
+# ╠═e0b41390-5e4e-11eb-069e-734d7d4cba45
+# ╠═6fcafa20-5e50-11eb-16c5-e5e37342fe61
+# ╠═fcef66e0-5e4e-11eb-26eb-cbb829de1453
+# ╠═6ecc9cf0-5e50-11eb-195a-19902d60efca
 # ╟─1ff6b5cc-ee19-11ea-2ca8-7f00c204f587
 # ╟─0001f782-ee0e-11ea-1fb4-2b5ef3d241e2
 # ╠═1b85ee76-ee10-11ea-36d7-978340ef61e6
