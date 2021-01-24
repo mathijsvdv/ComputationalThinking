@@ -57,8 +57,8 @@ end
 
 # ╔═╡ 74b008f6-ed6b-11ea-291f-b3791d6d1b35
 begin
-	Pkg.add(["Images", "ImageMagick"])
-	using Images
+	Pkg.add(["Images", "ImageMagick", "BenchmarkTools"])
+	using Images, BenchmarkTools
 end
 
 # ╔═╡ 6b30dc38-ed6b-11ea-10f3-ab3f121bf4b8
@@ -193,6 +193,28 @@ end
 
 # ╔═╡ 70955aca-ed6e-11ea-2330-89b4d20b1795
 matrix_to_vecvec([6 7; 8 9])
+
+# ╔═╡ 7df6e0ee-5e78-11eb-3a54-87d2697616c7
+@benchmark matrix_to_vecvec([6 7; 8 9])
+
+# ╔═╡ a1c08f90-5e78-11eb-1c49-b9859c3ba429
+function matrix_to_vecvec2(matrix)
+	return collect(eachcol(matrix))
+end
+
+# ╔═╡ bd13ccd0-5e78-11eb-17e0-9533130378c3
+@benchmark matrix_to_vecvec2([6 7; 8 9])
+
+# ╔═╡ 59e81d90-5e79-11eb-0b2c-a3713ffa7e0c
+function matrix_to_vecvec_simple(matrix)
+	return [@view matrix[:, i] for i in 1:size(matrix, 2)]
+end
+
+# ╔═╡ dde79400-5e78-11eb-01fb-aba0149d1e55
+matrix_to_vecvec_simple([6 7; 8 9])
+
+# ╔═╡ a7b03990-5e79-11eb-1c2f-7339d2d947b9
+@benchmark matrix_to_vecvec_simple([6 7; 8 9])
 
 # ╔═╡ 5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 begin
@@ -461,8 +483,7 @@ n = 50
 
 # ╔═╡ 7fdb34dc-ee09-11ea-366b-ffe10d1aa845
 begin
-	v = zeros(n)
-	v[2:2:n] .= 1
+	v = rand(100)
 end
 
 
@@ -638,6 +659,18 @@ begin
 	convolve_vector(v, k) = convolve_vector(v, Kernel(k))
 end
 
+# ╔═╡ 31af50d0-5e80-11eb-0dcd-0da5119fa47a
+function convolve_vector_cxor(v, k)
+	l = (length(k) - 1) ÷ 2
+	exv = [extend(v, il) for il in (-l+1):(length(v) + l)]
+	
+	convolvedV = map(iv -> begin
+			transpose(exv[iv:(iv + 2l)]) * k
+		end, 1:length(v))
+	
+	return convolvedV
+end
+
 # ╔═╡ 93284f92-ee12-11ea-0342-833b1a30625c
 test_convolution = let
 	v = [1, 10, 100, 1000, 10000]
@@ -653,6 +686,20 @@ test_convolution_2 = let
 	v = [0.0, 0.5, 0.0, 1.0]
 	k = [-1, 2, -2]
 	convolve_vector(v, k)
+end
+
+# ╔═╡ 4758d140-5e80-11eb-2ccc-a545ca3eb047
+test_convolution_1_benchmark = let
+	v = [1, 10, 100, 1000, 10000]
+	k = [0, 1, 0]
+	@benchmark convolve_vector(v, k)
+end
+
+# ╔═╡ 60bee480-5e80-11eb-161b-73024b6b88b0
+test_convolution_1_cxor_benchmark = let
+	v = [1, 10, 100, 1000, 10000]
+	k = [0, 1, 0]
+	@benchmark convolve_vector_cxor(v, k)
 end
 
 # ╔═╡ cf73f9f8-ee12-11ea-39ae-0107e9107ef5
@@ -1676,6 +1723,12 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─393667ca-edf2-11ea-09c5-c5d292d5e896
 # ╠═9f1c6d04-ed6c-11ea-007b-75e7e780703d
 # ╠═70955aca-ed6e-11ea-2330-89b4d20b1795
+# ╠═7df6e0ee-5e78-11eb-3a54-87d2697616c7
+# ╠═a1c08f90-5e78-11eb-1c49-b9859c3ba429
+# ╠═bd13ccd0-5e78-11eb-17e0-9533130378c3
+# ╠═59e81d90-5e79-11eb-0b2c-a3713ffa7e0c
+# ╠═dde79400-5e78-11eb-01fb-aba0149d1e55
+# ╠═a7b03990-5e79-11eb-1c2f-7339d2d947b9
 # ╟─e06b7fbc-edf2-11ea-1708-fb32599dded3
 # ╟─5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 # ╟─45815734-ee0a-11ea-2982-595e1fc0e7b1
@@ -1759,8 +1812,11 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╠═28e20950-ee0c-11ea-0e0a-b5f2e570b56e
 # ╟─e9aadeee-ee1d-11ea-3525-95f6ba5fda31
 # ╟─5eea882c-ee13-11ea-0d56-af81ecd30a4a
+# ╠═31af50d0-5e80-11eb-0dcd-0da5119fa47a
 # ╠═93284f92-ee12-11ea-0342-833b1a30625c
 # ╠═bc77d3e0-5836-11eb-26f6-811df0806933
+# ╠═4758d140-5e80-11eb-2ccc-a545ca3eb047
+# ╠═60bee480-5e80-11eb-161b-73024b6b88b0
 # ╟─cf73f9f8-ee12-11ea-39ae-0107e9107ef5
 # ╟─7ffd14f8-ee1d-11ea-0343-b54fb0333aea
 # ╟─80b7566a-ee09-11ea-3939-6fab470f9ec8
