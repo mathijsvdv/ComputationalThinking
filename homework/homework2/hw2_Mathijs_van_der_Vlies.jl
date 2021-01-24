@@ -692,7 +692,17 @@ Now it's easy to see that the above algorithm is equivalent to one that populate
 
 # ╔═╡ ff055726-f320-11ea-32f6-2bf38d7dd310
 function least_energy_matrix(energies)
-	copy(energies)
+	least_energies = copy(energies)
+	n, m = size(least_energies)
+	
+	for i in n-1:-1:1, j in 1:m
+		left = max(j-1, 1)
+		right = min(j+1, m)
+		
+		least_energies[i, j] += minimum(@view least_energies[i+1, left:right])
+	end
+	
+	return least_energies
 end
 
 # ╔═╡ 92e19f22-f37b-11ea-25f7-e321337e375e
@@ -856,6 +866,12 @@ end
 
 # ╔═╡ 7577c0ce-5e27-11eb-121f-73e2f13759a8
 @benchmark shrink_n(pika, 3, recursive_seam)
+
+# ╔═╡ 39367970-5e2e-11eb-08b0-1393333a04a0
+brightness.(pika)
+
+# ╔═╡ 176e4020-5e2e-11eb-3978-db52292cb438
+least_energy_matrix(brightness.(pika))
 
 # ╔═╡ ffc17f40-f380-11ea-30ee-0fe8563c0eb1
 hint(text) = Markdown.MD(Markdown.Admonition("hint", "Hint", [text]))
@@ -1099,6 +1115,8 @@ bigbreak
 # ╟─4f48c8b8-f39d-11ea-25d2-1fab031a514f
 # ╟─24792456-f37b-11ea-07b2-4f4c8caea633
 # ╠═ff055726-f320-11ea-32f6-2bf38d7dd310
+# ╠═39367970-5e2e-11eb-08b0-1393333a04a0
+# ╠═176e4020-5e2e-11eb-3978-db52292cb438
 # ╟─e0622780-f3b4-11ea-1f44-59fb9c5d2ebd
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
