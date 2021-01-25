@@ -13,6 +13,19 @@ macro bind(def, element)
     end
 end
 
+# ╔═╡ 74b008f6-ed6b-11ea-291f-b3791d6d1b35
+begin
+	import Pkg
+	Pkg.add(["Images", "ImageMagick"])
+	using Images
+end
+
+# ╔═╡ 6b30dc38-ed6b-11ea-10f3-ab3f121bf4b8
+begin
+	Pkg.add("PlutoUI")
+	using PlutoUI
+end
+
 # ╔═╡ 83eb9ca0-ed68-11ea-0bc5-99a09c68f867
 md"_homework 1, version 4_"
 
@@ -49,24 +62,6 @@ Submission by: **_$(student.name)_** ($(student.kerberos_id)@mit.edu)
 # ╔═╡ 5f95e01a-ee0a-11ea-030c-9dba276aba92
 md"_Let's create a package environment:_"
 
-# ╔═╡ 65780f00-ed6b-11ea-1ecf-8b35523a7ac0
-begin
-	import Pkg
-	Pkg.activate(mktempdir())
-end
-
-# ╔═╡ 74b008f6-ed6b-11ea-291f-b3791d6d1b35
-begin
-	Pkg.add(["Images", "ImageMagick"])
-	using Images
-end
-
-# ╔═╡ 6b30dc38-ed6b-11ea-10f3-ab3f121bf4b8
-begin
-	Pkg.add("PlutoUI")
-	using PlutoUI
-end
-
 # ╔═╡ 67461396-ee0a-11ea-3679-f31d46baa9b4
 md"_We set up Images.jl again:_"
 
@@ -97,7 +92,7 @@ length([1, 2, 3])
 
 # ╔═╡ 0ffa8354-edee-11ea-2883-9d5bfea4a236
 function mean(x)
-	s = 0
+	s = zero(eltype(x))
 	for el in x
 		s += el
 	end
@@ -105,8 +100,14 @@ function mean(x)
 	return s / length(x) 
 end
 
+# ╔═╡ 2cef2840-5f52-11eb-3b99-fb5b40600412
+
+
 # ╔═╡ 1f104ce4-ee0e-11ea-2029-1d9c817175af
 mean([1, 2, 3])
+
+# ╔═╡ 33248342-5f52-11eb-3563-b751f10c7007
+@code_warntype(mean([1.0, 2.0, 3.0]))
 
 # ╔═╡ 1f229ca4-edee-11ea-2c56-bb00cc6ea53c
 md"👉 Define `m` to be the mean of `random_vect`."
@@ -233,9 +234,9 @@ md"""
 
 # ╔═╡ f6898df6-ee07-11ea-2838-fde9bc739c11
 function mean_colors(image)
-	r = mean(getproperty.(image, :r))
-	g = mean(getproperty.(image, :g))
-	b = mean(getproperty.(image, :b))
+	r = mean(ColorTypes.red.(image))
+	g = mean(ColorTypes.green.(image))
+	b = mean(ColorTypes.blue.(image))
 	
 	return RGB(r, g, b)
 end
@@ -319,6 +320,9 @@ invert(black)
 
 # ╔═╡ 4e21e0c4-ee0b-11ea-3d65-b311ae3f98e9
 red = RGB(0.8, 0.1, 0.1)
+
+# ╔═╡ 740374fe-5f53-11eb-2473-5dc0de0fbcc9
+@code_warntype(invert(red))
 
 # ╔═╡ 6dbf67ce-ee0b-11ea-3b71-abc05a64dc43
 invert(red)
@@ -417,6 +421,9 @@ end
 
 # ╔═╡ c030bed0-57d6-11eb-233b-af72ba811496
 typeof(philip[1, 1])
+
+# ╔═╡ f87164b0-5f52-11eb-37b0-0387d67e98ab
+@code_warntype(mean_colors(philip))
 
 # ╔═╡ 5be9b144-ee0d-11ea-2a8d-8775de265a1d
 mean_colors(philip)
@@ -1682,7 +1689,6 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─ac8ff080-ed61-11ea-3650-d9df06123e1f
 # ╠═911ccbce-ed68-11ea-3606-0384e7580d7c
 # ╟─5f95e01a-ee0a-11ea-030c-9dba276aba92
-# ╠═65780f00-ed6b-11ea-1ecf-8b35523a7ac0
 # ╟─67461396-ee0a-11ea-3679-f31d46baa9b4
 # ╠═74b008f6-ed6b-11ea-291f-b3791d6d1b35
 # ╟─54056a02-ee0a-11ea-101f-47feb6623bec
@@ -1697,7 +1703,9 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─cf738088-eded-11ea-2915-61735c2aa990
 # ╠═f78ddbf0-57d2-11eb-224a-21f204febbd2
 # ╠═0ffa8354-edee-11ea-2883-9d5bfea4a236
+# ╠═2cef2840-5f52-11eb-3b99-fb5b40600412
 # ╠═1f104ce4-ee0e-11ea-2029-1d9c817175af
+# ╠═33248342-5f52-11eb-3563-b751f10c7007
 # ╟─38dc80a0-edef-11ea-10e9-615255a4588c
 # ╟─1f229ca4-edee-11ea-2c56-bb00cc6ea53c
 # ╠═2a391708-edee-11ea-124e-d14698171b68
@@ -1729,6 +1737,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─c54ccdea-ee05-11ea-0365-23aaf053b7d7
 # ╠═c030bed0-57d6-11eb-233b-af72ba811496
 # ╠═f6898df6-ee07-11ea-2838-fde9bc739c11
+# ╠═f87164b0-5f52-11eb-37b0-0387d67e98ab
 # ╠═5be9b144-ee0d-11ea-2a8d-8775de265a1d
 # ╟─4d0158d0-ee0d-11ea-17c3-c169d4284acb
 # ╠═d75ec078-ee0d-11ea-3723-71fb8eecb040
@@ -1747,6 +1756,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─b8f26960-ee0a-11ea-05b9-3f4bc1099050
 # ╠═5de3a22e-ee0b-11ea-230f-35df4ca3c96d
 # ╠═4e21e0c4-ee0b-11ea-3d65-b311ae3f98e9
+# ╠═740374fe-5f53-11eb-2473-5dc0de0fbcc9
 # ╠═6dbf67ce-ee0b-11ea-3b71-abc05a64dc43
 # ╟─846b1330-ee0b-11ea-3579-7d90fafd7290
 # ╠═943103e2-ee0b-11ea-33aa-75a8a1529931
