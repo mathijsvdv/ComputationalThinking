@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.12
+# v0.12.18
 
 using Markdown
 using InteractiveUtils
@@ -18,9 +18,10 @@ using Pkg
 
 # ╔═╡ bc14fc1a-f60b-11ea-207a-91b967f28076
 begin
-	pkg"add Colors ColorSchemes Images ImageMagick PlutoUI Suppressor InteractiveUtils"
+	pkg"add Colors ColorSchemes Images ImageMagick PlutoUI Suppressor InteractiveUtils BenchmarkTools"
 	using Colors, ColorSchemes, Images, ImageMagick
 	using Suppressor, InteractiveUtils, PlutoUI
+	using BenchmarkTools
 end
 
 # ╔═╡ 0feb5674-f5d5-11ea-0714-7379a7d381a3
@@ -149,6 +150,9 @@ M = [5 0 0
 # ╔═╡ 21328d1c-f5d5-11ea-288e-4171ad35326d
 Diagonal(M)
 
+# ╔═╡ 40b1a5c0-61ae-11eb-1b8d-07b4c9507e1d
+D = Diagonal(M)
+
 # ╔═╡ d8f36278-f5d5-11ea-3338-8573ce40e65e
 md"How much information do you need for a diagonal matrix?"
 
@@ -237,7 +241,10 @@ md"Do you recognise this?"
 rand(3) .* rand(4)'
 
 # ╔═╡ 2f75df7e-f601-11ea-2fc2-aff4f335af33
-imshow(rand(3) .* rand(4)')
+imshow(rand(10) .* rand(12)')
+
+# ╔═╡ 73632d70-61b0-11eb-0ad3-13782e6086c5
+md"The SVD captures the idea of: I want to get the multiplication tables that can be summed to get this matrix." 
 
 # ╔═╡ 53e6b612-f601-11ea-05a9-5395e69b3c41
 svd(rand(3) .* rand(4)')
@@ -453,6 +460,9 @@ end
 # ╔═╡ 3c28c4c2-f5fa-11ea-1947-9dfe91ea1535
 RGB.(sum(outer(Ur[:,i], Vr[:,i]) .* Σr[i] for i in 1:5), 0, 0)
 
+# ╔═╡ f3356300-61b1-11eb-0d4a-3febdc6fccce
+md"What's interesting is that the first principal component just looks like one of those swiss flags we saw earlier. So that's what a matrix generated as an outer product looks like." 
+
 # ╔═╡ f56f40e4-f5fa-11ea-3a99-156565445c2e
 @bind n Slider(1:100, show_value=true)
 
@@ -460,9 +470,6 @@ RGB.(sum(outer(Ur[:,i], Vr[:,i]) .* Σr[i] for i in 1:5), 0, 0)
 RGB.(sum(outer(Ur[:,i], Vr[:,i]) .* Σr[i] for i in 1:n), 
 	sum(outer(Ug[:,i], Vg[:,i]) .* Σg[i] for i in 1:n),
 	sum(outer(Ub[:,i], Vb[:,i]) .* Σb[i] for i in 1:n))
-
-# ╔═╡ 8a22387e-f5fb-11ea-249b-435af5c0a6b6
-
 
 # ╔═╡ 8df84fcc-f5d5-11ea-312f-bf2a3b3ce2ce
 md"## Appendix"
@@ -506,6 +513,11 @@ end
 # ╔═╡ b38c4aae-f5d5-11ea-39b6-7b0c7d529019
 with_terminal() do
 	dump(Diagonal(M))
+end
+
+# ╔═╡ 29c14d70-61ae-11eb-2613-b5b22a245d16
+with_terminal() do
+	@code_warntype D[2,2]
 end
 
 # ╔═╡ 8b60629e-f5d6-11ea-27c8-d934460d3a57
@@ -564,6 +576,8 @@ end
 # ╠═21328d1c-f5d5-11ea-288e-4171ad35326d
 # ╠═466901ea-f5d5-11ea-1db5-abf82c96eabf
 # ╠═b38c4aae-f5d5-11ea-39b6-7b0c7d529019
+# ╠═40b1a5c0-61ae-11eb-1b8d-07b4c9507e1d
+# ╠═29c14d70-61ae-11eb-2613-b5b22a245d16
 # ╟─d8f36278-f5d5-11ea-3338-8573ce40e65e
 # ╟─e90c55fc-f5d5-11ea-10f1-470ff772985d
 # ╠═19775c3c-f5d6-11ea-15c2-89618e654a1e
@@ -596,6 +610,7 @@ end
 # ╠═165788b2-f601-11ea-3e69-cdbbb6558e54
 # ╠═22941bb8-f601-11ea-1d6e-0d955297bc2e
 # ╠═2f75df7e-f601-11ea-2fc2-aff4f335af33
+# ╟─73632d70-61b0-11eb-0ad3-13782e6086c5
 # ╠═53e6b612-f601-11ea-05a9-5395e69b3c41
 # ╠═5a493052-f601-11ea-2f5f-f940412905f2
 # ╠═8633afb2-f601-11ea-206b-e9c4b9621c2a
@@ -660,9 +675,9 @@ end
 # ╠═6532b388-f5f9-11ea-2ae2-f9b12e441bb3
 # ╠═0c0ee362-f5f9-11ea-0f75-2d2810c88d65
 # ╠═3c28c4c2-f5fa-11ea-1947-9dfe91ea1535
+# ╠═f3356300-61b1-11eb-0d4a-3febdc6fccce
 # ╠═f56f40e4-f5fa-11ea-3a99-156565445c2e
 # ╠═7ba6e6a6-f5fa-11ea-2bcd-616d5a3c898b
-# ╠═8a22387e-f5fb-11ea-249b-435af5c0a6b6
 # ╠═4f8684ea-f5fb-11ea-07be-11d8046f35df
 # ╠═8df84fcc-f5d5-11ea-312f-bf2a3b3ce2ce
 # ╠═91980bcc-f5d5-11ea-211f-e9a08ff0fb19
