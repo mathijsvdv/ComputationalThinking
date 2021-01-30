@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.14
+# v0.12.18
 
 using Markdown
 using InteractiveUtils
@@ -25,12 +25,14 @@ begin
 			"Compose",
 			"Colors",
 			"PlutoUI",
+			"BenchmarkTools"
 			])
 
 	using Colors
 	using PlutoUI
 	using Compose
 	using LinearAlgebra
+	using BenchmarkTools
 end
 
 # ╔═╡ e6b6760a-f37f-11ea-3ae1-65443ef5a81a
@@ -149,7 +151,7 @@ md"👉 Use `filter` to extract just the characters from our alphabet out of `me
 messy_sentence_1 = "#wow 2020 ¥500 (blingbling!)"
 
 # ╔═╡ 75694166-f998-11ea-0428-c96e1113e2a0
-cleaned_sentence_1 = missing
+cleaned_sentence_1 = filter(isinalphabet, messy_sentence_1)
 
 # ╔═╡ 05f0182c-f999-11ea-0a52-3d46c65a049e
 md"""
@@ -165,7 +167,7 @@ md"👉 Use the function `lowercase` to convert `messy_sentence_2` into a lower 
 messy_sentence_2 = "Awesome! 😍"
 
 # ╔═╡ d3a4820e-f998-11ea-2a5c-1f37e2a6dd0a
-cleaned_sentence_2 = missing
+cleaned_sentence_2 = filter(isinalphabet, lowercase(messy_sentence_2))
 
 # ╔═╡ aad659b8-f998-11ea-153e-3dae9514bfeb
 md"""
@@ -216,7 +218,7 @@ $(html"<br>")
 # ╔═╡ 4affa858-f92e-11ea-3ece-258897c37e51
 function clean(text)
 	# we turn everything to lowercase to keep the number of letters small
-	missing
+	return filter(isinalphabet, (lowercase ∘ unaccent)(text))
 end
 
 # ╔═╡ e00d521a-f992-11ea-11e0-e9da8255b23b
@@ -248,8 +250,17 @@ To make it easier to convert between a character from the alphabet and its index
 # ╔═╡ b3de6260-f9a4-11ea-1bae-9153a92c3fe5
 index_of_letter(letter) = findfirst(isequal(letter), alphabet)
 
+# ╔═╡ a742cc30-6323-11eb-3291-63832138f259
+md"It seems that index_of_letter is not type-stable, how can this be improved?"
+
+# ╔═╡ 95b5d8de-6323-11eb-1c51-970aab65ecbc
+@code_warntype index_of_letter('r')
+
 # ╔═╡ a6c36bd6-f9a4-11ea-1aba-f75cecc90320
 index_of_letter('a'), index_of_letter('b'), index_of_letter(' ')
+
+# ╔═╡ ce24d0a0-631e-11eb-133a-7564ccfcd111
+argmax(sample_freqs)
 
 # ╔═╡ 6d3f9dae-f9a5-11ea-3228-d147435e266d
 md"""
@@ -258,10 +269,11 @@ $(html"<br>")
 👉 Which letters from the alphabet did not occur in the sample?
 """
 
-# ╔═╡ 92bf9fd2-f9a5-11ea-25c7-5966e44db6c6
-unused_letters = let
-	['a', 'b']
-end
+# ╔═╡ 9e3b3b30-631f-11eb-1b89-85769e730fbf
+unused_indices = findall(x -> x == 0, sample_freqs)
+
+# ╔═╡ 0b7a7490-6320-11eb-39e3-7b6178205725
+unused_letters = alphabet[unused_indices]
 
 # ╔═╡ 01215e9a-f9a9-11ea-363b-67392741c8d4
 md"""
@@ -328,46 +340,87 @@ end
 md"""👉 What is the frequency of the combination `"th"`?"""
 
 # ╔═╡ 1b4c0c28-f9ab-11ea-03a6-69f69f7f90ed
-th_frequency = missing
+th_frequency = sample_freq_matrix[index_of_letter('t'), index_of_letter('h')]
 
 # ╔═╡ 1f94e0a2-f9ab-11ea-1347-7dd906ebb09d
 md"""👉 What about `"ht"`?"""
 
 # ╔═╡ 41b2df7c-f931-11ea-112e-ede3b16f357a
-ht_frequency = missing
+ht_frequency = sample_freq_matrix[index_of_letter('h'), index_of_letter('t')]
 
 # ╔═╡ 1dd1e2f4-f930-11ea-312c-5ff9e109c7f6
 md"""
 👉 Which le**tt**ers appeared double in our sample?
 """
 
+# ╔═╡ 58804010-6322-11eb-0d70-7be6152ecefd
+function find_double_letters(f::Function, sample_freq_matrix)
+	double_indices = findall(f, diag(sample_freq_matrix))
+	return alphabet[double_indices]
+end
+
 # ╔═╡ 65c92cac-f930-11ea-20b1-6b8f45b3f262
-double_letters = ['x', 'y']
+double_letters = find_double_letters(x -> x > 0, sample_freq_matrix)
 
 # ╔═╡ 4582ebf4-f930-11ea-03b2-bf4da1a8f8df
 md"""
 👉 Which letter is most likely to follow a **W**?
 """
 
+# ╔═╡ 40c14d20-6322-11eb-15f7-19ab9f2ecef8
+begin
+	function most_likely_to_follow(index::Integer, sample_freq_matrix)
+		return argmax(sample_freq_matrix[index, :])
+	end
+	function most_likely_to_follow(letter::AbstractChar, sample_freq_matrix)
+		index = index_of_letter(letter)
+		most_likely_index = most_likely_to_follow(index, sample_freq_matrix)
+		return alphabet[most_likely_index]
+	end
+end
+
 # ╔═╡ 7898b76a-f930-11ea-2b7e-8126ec2b8ffd
-most_likely_to_follow_w = 'x'
+begin
+	most_likely_to_follow_w = most_likely_to_follow('w', sample_freq_matrix)
+end
+
+# ╔═╡ 6198ef6e-6323-11eb-37cb-0552dbf3168d
+@code_warntype most_likely_to_follow('w', sample_freq_matrix)
 
 # ╔═╡ 458cd100-f930-11ea-24b8-41a49f6596a0
 md"""
 👉 Which letter is most likely to precede a **W**?
 """
 
+# ╔═╡ c381a1f0-6323-11eb-3cb5-016e4c45412a
+begin
+	function most_likely_to_precede(index::Integer, sample_freq_matrix)
+		return argmax(sample_freq_matrix[:, index])
+	end
+	function most_likely_to_precede(letter::AbstractChar, sample_freq_matrix)
+		index = index_of_letter(letter)
+		most_likely_index = most_likely_to_precede(index, sample_freq_matrix)
+		return alphabet[most_likely_index]
+	end
+end
+
 # ╔═╡ bc401bee-f931-11ea-09cc-c5efe2f11194
-most_likely_to_precede_w = 'x'
+most_likely_to_precede_w = most_likely_to_precede('w', sample_freq_matrix)
 
 # ╔═╡ 45c20988-f930-11ea-1d12-b782d2c01c11
 md"""
 👉 What is the sum of each row? What is the sum of each column? How can we interpret these values?"
 """
 
+# ╔═╡ 48e4aa90-6324-11eb-3102-a53a440612c3
+sum_row = sum(sample_freq_matrix, dims=2)
+
+# ╔═╡ d28bd242-6334-11eb-0561-6bfabffce9ef
+sum_col = sum(sample_freq_matrix, dims=1)
+
 # ╔═╡ cc62929e-f9af-11ea-06b9-439ac08dcb52
 row_col_answer = md"""
-
+The sum of each row (column) gives the likelihood of a pair starting (ending) with each letter.
 """
 
 # ╔═╡ 2f8dedfc-fb98-11ea-23d7-2159bdb6a299
@@ -452,7 +505,7 @@ The only question left is: How do we compare two matrices? When two matrices are
 
 # ╔═╡ 13c89272-f934-11ea-07fe-91b5d56dedf8
 function matrix_distance(A, B)
-	missing # do something with A .- B
+	return sum(abs.(A .- B))
 end
 
 # ╔═╡ 7d60f056-f931-11ea-39ae-5fa18a955a77
@@ -568,7 +621,10 @@ ngrams([1, 2, 3, 42], 2) == bigrams([1, 2, 3, 42])
 
 # ╔═╡ 7be98e04-fb6b-11ea-111d-51c48f39a4e9
 function ngrams(words, n)
-	missing
+	n′ = n - 1
+	return map(1:length(words)-n′) do i
+		words[i:i+n′]
+	end
 end
 
 # ╔═╡ 052f822c-fb7b-11ea-382f-af4d6c2b4fdb
@@ -634,14 +690,40 @@ Dict(
 ```
 """
 
-# ╔═╡ 8ce3b312-fb82-11ea-200c-8d5b12f03eea
+# ╔═╡ c73236c0-6337-11eb-27ba-4940a23f9592
 function word_counts(words::Vector)
-	counts = Dict()
+	counts = Dict{eltype(words), Int64}()
 	
-	# your code here
-	
+	for word in words
+		if haskey(counts, word)
+			counts[word] += 1
+		else
+			counts[word] = 1
+		end
+	end
+		
 	return counts
 end
+
+# ╔═╡ c475b960-6338-11eb-3df3-dda252c69466
+function word_counts2(words::Vector)
+	counts = Dict{eltype(words), Int64}()
+	
+	for word in words
+		counts[word] = get!(counts, word, 0) + 1
+	end
+		
+	return counts
+end
+
+# ╔═╡ 6fddc530-633a-11eb-0f16-23ae7b2df146
+@code_warntype word_counts(forest_words)
+
+# ╔═╡ 707f8ad0-6337-11eb-1909-fdd8a7ac3287
+@benchmark word_counts(forest_words)
+
+# ╔═╡ c56b3260-6337-11eb-2aa0-b7378bd449bd
+@benchmark word_counts2(forest_words)
 
 # ╔═╡ a2214e50-fb83-11ea-3580-210f12d44182
 word_counts(["to", "be", "or", "not", "to", "be"])
@@ -651,8 +733,11 @@ md"""
 How many times does `"Emma"` occur in the book?
 """
 
+# ╔═╡ 213e9f90-6339-11eb-1f1b-e54bb766f57c
+emma_counts = word_counts(emma_words)
+
 # ╔═╡ 953363dc-fb84-11ea-1128-ebdfaf5160ee
-emma_count = missing
+emma_count = emma_counts["Emma"]
 
 # ╔═╡ 294b6f50-fb84-11ea-1382-03e9ab029a2d
 md"""
@@ -680,10 +765,19 @@ If the same ngram occurs multiple times (e.g. "said Emma laughing"), then the la
 
 # ╔═╡ b726f824-fb5e-11ea-328e-03a30544037f
 function completions_cache(grams)
-	cache = Dict()
+	TGram = eltype(grams)
+	cache = Dict{TGram,TGram}()
 	
-	# your code here
-	
+	for gram in grams
+		key = gram[1:end-1]
+		completion = gram[end]
+		if haskey(cache, key)
+			push!(cache[key], completion) 
+		else
+			cache[key] = [completion]
+		end
+	end
+		
 	cache
 end
 
@@ -787,9 +881,6 @@ md"""
 Uncomment the cell below to generate some Jane Austen text:
 """
 
-# ╔═╡ 49b69dc2-fb8f-11ea-39af-030b5c5053c3
-# generate(emma, 100; n=4) |> Quote
-
 # ╔═╡ cc07f576-fbf3-11ea-2c6f-0be63b9356fc
 if student.name == "Jazzy Doe"
 	md"""
@@ -838,6 +929,9 @@ generate(
 	n=generate_sample_n_words, 
 	use_words=true
 ) |> Quote
+
+# ╔═╡ 49b69dc2-fb8f-11ea-39af-030b5c5053c3
+generate(emma, 100; n=4) |> Quote
 
 # ╔═╡ ddef9c94-fb96-11ea-1f17-f173a4ff4d89
 function compimg(img, labels=[c*d for c in replace(alphabet, ' ' => "_"), d in replace(alphabet, ' ' => "_")])
@@ -1176,10 +1270,14 @@ bigbreak
 # ╟─571d28d6-f960-11ea-1b2e-d5977ecbbb11
 # ╠═6a64ab12-f960-11ea-0d92-5b88943cdb1a
 # ╟─603741c2-f9a4-11ea-37ce-1b36ecc83f45
-# ╟─b3de6260-f9a4-11ea-1bae-9153a92c3fe5
+# ╠═b3de6260-f9a4-11ea-1bae-9153a92c3fe5
+# ╠═a742cc30-6323-11eb-3291-63832138f259
+# ╠═95b5d8de-6323-11eb-1c51-970aab65ecbc
 # ╠═a6c36bd6-f9a4-11ea-1aba-f75cecc90320
+# ╠═ce24d0a0-631e-11eb-133a-7564ccfcd111
 # ╟─6d3f9dae-f9a5-11ea-3228-d147435e266d
-# ╠═92bf9fd2-f9a5-11ea-25c7-5966e44db6c6
+# ╠═9e3b3b30-631f-11eb-1b89-85769e730fbf
+# ╠═0b7a7490-6320-11eb-39e3-7b6178205725
 # ╟─95b81778-f9a5-11ea-3f51-019430bc8fa8
 # ╟─7df7ab82-f9ad-11ea-2243-21685d660d71
 # ╟─dcffd7d2-f9a6-11ea-2230-b1afaecfdd54
@@ -1189,7 +1287,7 @@ bigbreak
 # ╟─8ae13cf0-f9a8-11ea-3919-a735c4ed9e7f
 # ╟─343d63c2-fb58-11ea-0cce-efe1afe070c2
 # ╟─b5b8dd18-f938-11ea-157b-53b145357fd1
-# ╟─0e872a6c-f937-11ea-125e-37958713a495
+# ╠═0e872a6c-f937-11ea-125e-37958713a495
 # ╟─77623f3e-f9a9-11ea-2f46-ff07bd27cd5f
 # ╠═fbb7c04e-f92d-11ea-0b81-0be20da242c8
 # ╠═80118bf8-f931-11ea-34f3-b7828113ffd8
@@ -1206,15 +1304,21 @@ bigbreak
 # ╠═41b2df7c-f931-11ea-112e-ede3b16f357a
 # ╟─489fe282-f931-11ea-3dcb-35d4f2ac8b40
 # ╟─1dd1e2f4-f930-11ea-312c-5ff9e109c7f6
+# ╠═58804010-6322-11eb-0d70-7be6152ecefd
 # ╠═65c92cac-f930-11ea-20b1-6b8f45b3f262
 # ╟─671525cc-f930-11ea-0e71-df9d4aae1c05
 # ╟─4582ebf4-f930-11ea-03b2-bf4da1a8f8df
-# ╟─7898b76a-f930-11ea-2b7e-8126ec2b8ffd
+# ╠═40c14d20-6322-11eb-15f7-19ab9f2ecef8
+# ╠═7898b76a-f930-11ea-2b7e-8126ec2b8ffd
+# ╠═6198ef6e-6323-11eb-37cb-0552dbf3168d
 # ╟─a5fbba46-f931-11ea-33e1-054be53d986c
 # ╟─458cd100-f930-11ea-24b8-41a49f6596a0
+# ╠═c381a1f0-6323-11eb-3cb5-016e4c45412a
 # ╠═bc401bee-f931-11ea-09cc-c5efe2f11194
 # ╟─ba695f6a-f931-11ea-0fbb-c3ef1374270e
 # ╟─45c20988-f930-11ea-1d12-b782d2c01c11
+# ╠═48e4aa90-6324-11eb-3102-a53a440612c3
+# ╠═d28bd242-6334-11eb-0561-6bfabffce9ef
 # ╠═cc62929e-f9af-11ea-06b9-439ac08dcb52
 # ╟─d3d7bd9c-f9af-11ea-1570-75856615eb5d
 # ╟─2f8dedfc-fb98-11ea-23d7-2159bdb6a299
@@ -1260,10 +1364,15 @@ bigbreak
 # ╠═df4fc31c-fb81-11ea-37b3-db282b36f5ef
 # ╠═c83b1770-fb82-11ea-20a6-3d3a09606c62
 # ╟─52970ac4-fb82-11ea-3040-8bd0590348d2
-# ╠═8ce3b312-fb82-11ea-200c-8d5b12f03eea
+# ╠═c73236c0-6337-11eb-27ba-4940a23f9592
+# ╠═c475b960-6338-11eb-3df3-dda252c69466
+# ╠═6fddc530-633a-11eb-0f16-23ae7b2df146
+# ╠═707f8ad0-6337-11eb-1909-fdd8a7ac3287
+# ╠═c56b3260-6337-11eb-2aa0-b7378bd449bd
 # ╠═a2214e50-fb83-11ea-3580-210f12d44182
 # ╟─a9ffff9a-fb83-11ea-1efd-2fc15538e52f
 # ╟─808abf6e-fb84-11ea-0785-2fc3f1c4a09f
+# ╠═213e9f90-6339-11eb-1f1b-e54bb766f57c
 # ╠═953363dc-fb84-11ea-1128-ebdfaf5160ee
 # ╟─294b6f50-fb84-11ea-1382-03e9ab029a2d
 # ╠═b726f824-fb5e-11ea-328e-03a30544037f
