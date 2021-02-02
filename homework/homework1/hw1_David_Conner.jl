@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.18
+# v0.12.20
 
 using Markdown
 using InteractiveUtils
@@ -95,26 +95,34 @@ md"👉 Make a function `mean` using a `for` loop, which computes the mean/avera
 
 # ╔═╡ 0ffa8354-edee-11ea-2883-9d5bfea4a236
 function mean(x)
-	
-	return reduce(+, transpose(x)) / length(x)
+	return reduce(+, x) / length(x)
 end
+
+# ╔═╡ b9aaccd8-64e0-11eb-3876-399a70783c55
+function mean2(x)
+	return sum(x) / length(x)
+end
+
+# ╔═╡ 60cd61e8-64e0-11eb-35cd-2f2a1292b050
+@benchmark mean(rand(10000))
 
 # ╔═╡ 1f104ce4-ee0e-11ea-2029-1d9c817175af
 mean([1, 2, 3])
+#mean(rand(100))
+
 
 # ╔═╡ 1f229ca4-edee-11ea-2c56-bb00cc6ea53c
 md"👉 Define `m` to be the mean of `random_vect`."
 
 # ╔═╡ 2a391708-edee-11ea-124e-d14698171b68
-m = (reduce(+, random_vect) / length(random_vect))
+m = mean(random_vect)
 
 # ╔═╡ e2863d4c-edef-11ea-1d67-332ddca03cc4
 md"""👉 Write a function `demean`, which takes a vector `x` and subtracts the mean from each value in `x`."""
 
 # ╔═╡ ec5efe8c-edef-11ea-2c6f-afaaeb5bc50c
 function demean(x)
-	mu = mean(x)
-	return map(a -> a - mu, x)
+	return x .- mean(x)
 end
 
 # ╔═╡ 29e10640-edf0-11ea-0398-17dbf4242de3
@@ -146,7 +154,7 @@ md"""
 # ╔═╡ b6b65b94-edf0-11ea-3686-fbff0ff53d08
 function create_bar()
 	__zeros_and_ones = zeros(100)
-	__zeros_and_ones[40:60] .= 1
+	__zeros_and_ones[41:60] .= 1
 	return __zeros_and_ones
 end
 
@@ -720,9 +728,6 @@ colored_line(thisResult)
 # ╔═╡ f1b381aa-58a2-11eb-372f-23a7dfed8de0
 result = convolve_vector(v, k)
 
-# ╔═╡ f1cf89f6-58a2-11eb-3864-3d2a92bf0758
-colored_bar(result)
-
 # ╔═╡ 463f8cd8-58a2-11eb-19a9-97719a45bc2b
 
 
@@ -787,16 +792,29 @@ function extend_mat(M::AbstractMatrix, i, j)
 	
 	n,m = size(M)
 	
+	if (n == 1 && m == 1) return M[1,1] end
 
+	#if edges or corners
 	if ((i < 1 || i > n) || (j < 1 || j > m)) 
-	elseif 
-		if (i < 1 && j < 1) return M[1,1] 
-		else return M[i,j] 
-		end
-	end		
-		
-		
-		
+		# corners
+		if (i < 1 && j < 1) return M[1 , 1] end # top left
+		if (i < 1 && j > m) return M[1 , m] end # top right
+		if (i > n && j < 1) return M[n , 1] end # bottom left
+		if (i > n && j > m) return M[n , m] end # bottom right
+
+		# i would do edges first (there are more of these)
+		#   but it is simpler to write this way 
+		#     (less specified conditions, but more total conditions)
+		# this code is only reached  when the initial condition is met
+		#   but i,j match none of the corners. it is deterministic:
+		#   only one can be matched.
+		if (i < 1) return M[1, j] end # top
+		if (i > n) return M[n, j] end # bottom
+		if (j < 1) return M[i, 1] end # left
+		if (j > m) return M[i, m] end
+	else #otherwise return the element 
+		return M[i,j] 
+	end
 end
 
 # ╔═╡ 9afc4dca-ee16-11ea-354f-1d827aaa61d2
@@ -832,24 +850,24 @@ md"""
 # ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
 	mn,mm = size(M)
-	kn,km = floor(size(K)/2)
+	kdimn,kdimm = size(K)
+	kn,km = Int.(floor.([kdimn kdimm] / 2))
 
 	# K=3 is (-1:+1), (-1, +1)
 	# TODO: RECALCULATE KN, KM
 
-	exM = if (kn == 1 && km == 1)
-		copy(M[i,j])
-	else
-		ilist,jlist = if (kn == 1) #untested
-			((1), (-kn+1 +1:mn + kn-1))
-		elseif (km == 1) #untested
-			((-km+1 +1:mm + km-1), (1))
+	exM = begin # if (kn == 0 && km == 0)
+		# copy(M[i,j])
+	# else
+		ilist,jlist = if (kn == 0) #untested
+			((1), (-kn+1: mn+kn))
+		elseif (km == 0) #untested
+			((-km+1 : mm + km), (1))
 		else #required
-			((-kn+1 +1:mn + kn-1),
-			 (-km+1 +1:mm + km-1))
+			((-kn+1 : mn + kn),
+			 (-km+1 : mm + km))
 		end
 
-		println(ilist,jlist)
 		exMat = [extend_mat(M, i, j) for 
 					i in ilist, 
 					j in jlist]
@@ -859,11 +877,11 @@ function convolve_image(M::AbstractMatrix, K::AbstractMatrix)
 	convolvedM = copy(M)
 	for i in 1:mn
 		for j in 1:mm
-			selected_pixels = exM[i:(i + kn - 1),
-								  j:(j + km - 1)]
-			if (i%3 == 1 && j%3 == 1) println(selected_pixels) end
-			convolved_pixel = transpose(reshape(selected_pixels, kn*km, 1)) * 
-							  reshape(K, kn*km, 1)
+			selected_pixels = exM[i:(i + 2kn),
+								  j:(j + 2km)]
+			sp = transpose(reshape(selected_pixels, kdimn*kdimm, 1))
+			rk = reshape(K, kdimn*kdimm, 1)
+			convolved_pixel = sp * rk			  
 			
 			convolvedM[i,j] = convolved_pixel[1]
 		end
@@ -914,13 +932,33 @@ $$G(x,y)=\frac{1}{2\pi \sigma^2}e^{\frac{-(x^2+y^2)}{2\sigma^2}}$$
 """
 
 # ╔═╡ aad67fd0-ee15-11ea-00d4-274ec3cda3a3
-function with_gaussian_blur(image)
-	
-	return missing
+begin
+	function gaussian2D(n)
+		nMidsize = floor(n^2/2)
+		
+		# for each tuple (i,j), broadcast substraction across the tuple
+		indices = [Int.(.-((i,j), nMidsize))
+			for (i,j) in Iterators.product(1 : n^2, 1 : n^2)]
+		
+		# then map the Gaussian across the set of index tuples
+		return map(i -> (1/2pi) * exp(-(i[1]^2 + i[2]^2)/2), indices)
+	end
+
+	function with_gaussian_blur(image)
+		return convolve_image(image, gaussian2D(5))
+	end
 end
+
+# ╔═╡ 26096df8-6509-11eb-28a0-e182f93b892d
+
 
 # ╔═╡ 8ae59674-ee18-11ea-3815-f50713d0fa08
 md"_Let's make it interactive. 💫_"
+
+# ╔═╡ 4de05270-6508-11eb-3fb2-bbe8a46afbde
+sum(gaussian2D(3))
+
+
 
 # ╔═╡ 7c6642a6-ee15-11ea-0526-a1aac4286cdd
 md"""
@@ -967,8 +1005,19 @@ For simplicity you can choose one of the "channels" (colours) in the image to ap
 
 # ╔═╡ 9eeb876c-ee15-11ea-1794-d3ea79f47b75
 function with_sobel_edge_detect(image)
+	S1, S2 = [1 2 1], [1; 0; -1]
+	# Kx, Ky = transpose(S1)*transpose(S2), S2*S1
+	Kx, Ky = transpose(S1)*transpose(S2), S2*S1
 	
-	return missing
+	# use a channelview to process image (nvm, image is grey)
+	result = copy(image)
+	
+	Gx = convolve_image(image, Kx)
+	Gy = convolve_image(image, Ky)
+	
+	result = sqrt.(abs.(Gx + Gy))
+
+	return result
 end
 
 # ╔═╡ 1b85ee76-ee10-11ea-36d7-978340ef61e6
@@ -1538,7 +1587,10 @@ with_gaussian_blur(gauss_camera_image)
 sobel_camera_image = Gray.(process_raw_camera_data(sobel_raw_camera_data));
 
 # ╔═╡ 1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
-with_sobel_edge_detect(sobel_camera_image)
+begin
+	edge_detect = with_sobel_edge_detect(sobel_camera_image)
+	Gray.(edge_detect)
+end
 
 # ╔═╡ 837d62a4-588a-11eb-31e9-23e768aa2e62
 noisify(c::AbstractRGB, s) to add random noise of intensity to each of the values in a colour.
@@ -1566,9 +1618,11 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─b1d5ca28-edf6-11ea-269e-75a9fb549f1d
 # ╟─cf738088-eded-11ea-2915-61735c2aa990
 # ╠═0ffa8354-edee-11ea-2883-9d5bfea4a236
+# ╠═b9aaccd8-64e0-11eb-3876-399a70783c55
+# ╠═60cd61e8-64e0-11eb-35cd-2f2a1292b050
 # ╠═1f104ce4-ee0e-11ea-2029-1d9c817175af
 # ╟─38dc80a0-edef-11ea-10e9-615255a4588c
-# ╟─1f229ca4-edee-11ea-2c56-bb00cc6ea53c
+# ╠═1f229ca4-edee-11ea-2c56-bb00cc6ea53c
 # ╠═2a391708-edee-11ea-124e-d14698171b68
 # ╟─2b1ccaca-edee-11ea-34b0-c51659f844d0
 # ╟─e2863d4c-edef-11ea-1d67-332ddca03cc4
@@ -1696,7 +1750,6 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╠═f1945302-58a2-11eb-372f-8121bcf3fa6e
 # ╠═f1989bd8-58a2-11eb-10bc-e7f2239a5e02
 # ╠═f1b381aa-58a2-11eb-372f-23a7dfed8de0
-# ╠═f1cf89f6-58a2-11eb-3864-3d2a92bf0758
 # ╠═463f8cd8-58a2-11eb-19a9-97719a45bc2b
 # ╟─b424e2aa-ee14-11ea-33fa-35491e0b9c9d
 # ╠═6b27b15c-58a1-11eb-27bb-2f40ab54732f
@@ -1729,8 +1782,10 @@ noisify(c::AbstractRGB, s) to add random noise of intensity to each of the value
 # ╟─8a335044-ee19-11ea-0255-b9391246d231
 # ╠═7c50ea80-ee15-11ea-328f-6b4e4ff20b7e
 # ╠═aad67fd0-ee15-11ea-00d4-274ec3cda3a3
+# ╠═26096df8-6509-11eb-28a0-e182f93b892d
 # ╟─8ae59674-ee18-11ea-3815-f50713d0fa08
 # ╟─94c0798e-ee18-11ea-3212-1533753eabb6
+# ╠═4de05270-6508-11eb-3fb2-bbe8a46afbde
 # ╠═a75701c4-ee18-11ea-2863-d3042e71a68b
 # ╟─f461f5f2-ee18-11ea-3d03-95f57f9bf09e
 # ╟─7c6642a6-ee15-11ea-0526-a1aac4286cdd
