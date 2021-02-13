@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.14
+# v0.12.20
 
 using Markdown
 using InteractiveUtils
@@ -84,7 +84,7 @@ In this model, an individual who is infected has a constant probability $p$ to r
 # ╔═╡ 02b0c2fc-0415-11eb-2b40-7bca8ea4eef9
 function bernoulli(p::Number)
 	
-	return missing
+	return rand() < p
 end
 
 # ╔═╡ 76d117d4-0403-11eb-05d2-c5ea47d06f43
@@ -98,8 +98,14 @@ function recovery_time(p)
 		throw(ArgumentError("p must be positive: p = 0 cannot result in a recovery"))
 	end
 	
-	# Your code here. See the comment below about the p ≤ 0 case.
-	return missing
+	τ = 1
+	
+	while true
+		if bernoulli(p)
+			return τ
+		end
+		τ += 1
+	end
 end
 
 # ╔═╡ 6db6c894-0415-11eb-305a-c75b119d89e9
@@ -121,7 +127,7 @@ md"""
 
 # ╔═╡ 73047bba-0416-11eb-1047-23e9c3dbde05
 interpretation_of_p_equals_one = md"""
-blablabla
+The person will immediately recover: `recovery_time(1) = 1`.
 """
 
 # ╔═╡ 76f62d64-0403-11eb-27e2-3de58366b619
@@ -133,7 +139,7 @@ md"""
 # ╔═╡ c5c7cb86-041b-11eb-3360-45463105f3c9
 function do_experiment(p, N)
 	
-	return missing
+	return [recovery_time(p) for i in 1:N]
 end
 
 # ╔═╡ d8abd2f6-0416-11eb-1c2a-f9157d9760a7
@@ -162,10 +168,30 @@ Dict(
 As with any probability distribution, it should be normalised to $1$, in the sense that the *total* probability should be $1$.
 """
 
+# ╔═╡ 922364a0-6dea-11eb-2104-f1eb540067cf
+begin
+	d = Dict(1 => 2, 2 => 3)
+	Dict(k => v / 3 for (k, v) in d)
+end
+
+
+# ╔═╡ c82c8db0-6dea-11eb-2deb-630a73abb231
+
+
 # ╔═╡ 105d347e-041c-11eb-2fc8-1d9e5eda2be0
 function frequencies(values)
+	counts = Dict{eltype(values),Int}()
+	n = length(values)
 	
-	return missing
+	for v in values
+		if haskey(counts, v)
+			counts[v] += 1
+		else
+			counts[v] = 1
+		end
+	end
+	
+	return Dict(v => c / n for (v, c) in counts)
 end
 
 # ╔═╡ 1ca7a8c2-041a-11eb-146a-15b8cdeaea72
@@ -249,11 +275,16 @@ md"""
 👉 Write the function `frequencies_plot_with_mean` that calculates the mean recovery time and displays it using a vertical line. 
 """
 
+# ╔═╡ a8318860-6dec-11eb-276b-052effc35cdf
+mean(data) = sum(data) / length(data)
+
 # ╔═╡ f1f89502-0494-11eb-2303-0b79d8bbd13f
 function frequencies_plot_with_mean(data)
 	# start out by copying the frequencies_plot_with_maximum function
+	base = bar(frequencies(data))
+	vline!(base, [mean(data)], label="mean")
 	
-	return missing
+	return base
 end
 
 # ╔═╡ 06089d1e-0495-11eb-0ace-a7a7dc60e5b2
@@ -265,7 +296,10 @@ md"""
 """
 
 # ╔═╡ bb63f3cc-042f-11eb-04ff-a128aec3c378
+@bind p_interactive Slider(0.01:0.01:1, default=0.5, show_value=true)
 
+# ╔═╡ 15ee5632-6ded-11eb-00c2-fb6dd7ac5502
+@bind N_interactive Slider(1:100_000, default=10_000, show_value=true)
 
 # ╔═╡ bb8aeb58-042f-11eb-18b8-f995631df619
 md"""
@@ -278,8 +312,30 @@ md"""
 👉 What shape does the distribution seem to have? Can you verify that by adding a second plot with the expected shape?
 """
 
-# ╔═╡ 7bb8e426-0495-11eb-3a8b-cbbab61a1631
+# ╔═╡ 3d29e820-6def-11eb-32cd-0f4ffc582b38
+experiment = do_experiment(p_interactive, N_interactive)
 
+# ╔═╡ 3461f0d0-6dee-11eb-3dad-6b63cf95a6a6
+begin
+	struct Geometric{T <: Real}
+		p::T
+	end
+	
+	function pdf(d::Geometric, k::Int)
+		return (1 - d.p)^(k-1) * d.p
+	end
+end
+
+# ╔═╡ 47aae16e-6ded-11eb-1c7e-dfff6c5b3c78
+let
+	experiment = do_experiment(p_interactive, N_interactive)
+	frequencies_plot_with_mean(experiment)
+	geometric = Geometric(p_interactive)
+	plot!(pdf.(Ref(geometric), sort(unique(experiment))), label="geometric pdf")
+end
+
+# ╔═╡ 20f376d0-6def-11eb-1a9a-37296964fab7
+pdf(Geometric(0.5), 2)
 
 # ╔═╡ 77db111e-0403-11eb-2dea-4b42ceed65d6
 md"""
@@ -1042,6 +1098,8 @@ bigbreak
 # ╠═c5c7cb86-041b-11eb-3360-45463105f3c9
 # ╠═d8abd2f6-0416-11eb-1c2a-f9157d9760a7
 # ╟─771c8f0c-0403-11eb-097e-ab24d0714ad5
+# ╠═922364a0-6dea-11eb-2104-f1eb540067cf
+# ╠═c82c8db0-6dea-11eb-2deb-630a73abb231
 # ╠═105d347e-041c-11eb-2fc8-1d9e5eda2be0
 # ╠═1ca7a8c2-041a-11eb-146a-15b8cdeaea72
 # ╟─08e2bc64-0417-11eb-1457-21c0d18e8c51
@@ -1054,13 +1112,18 @@ bigbreak
 # ╠═1ddbaa18-0494-11eb-1fc8-250ab6ae89f1
 # ╟─f3f81172-041c-11eb-2b9b-e99b7b9400ed
 # ╟─7768a2dc-0403-11eb-39b7-fd660dc952fe
+# ╠═a8318860-6dec-11eb-276b-052effc35cdf
 # ╠═f1f89502-0494-11eb-2303-0b79d8bbd13f
 # ╠═06089d1e-0495-11eb-0ace-a7a7dc60e5b2
 # ╟─77b54c10-0403-11eb-16ad-65374d29a817
 # ╠═bb63f3cc-042f-11eb-04ff-a128aec3c378
+# ╠═15ee5632-6ded-11eb-00c2-fb6dd7ac5502
+# ╠═47aae16e-6ded-11eb-1c7e-dfff6c5b3c78
 # ╟─bb8aeb58-042f-11eb-18b8-f995631df619
 # ╟─778ec25c-0403-11eb-3146-1d11c294bb1f
-# ╠═7bb8e426-0495-11eb-3a8b-cbbab61a1631
+# ╠═3d29e820-6def-11eb-32cd-0f4ffc582b38
+# ╠═3461f0d0-6dee-11eb-3dad-6b63cf95a6a6
+# ╠═20f376d0-6def-11eb-1a9a-37296964fab7
 # ╟─77db111e-0403-11eb-2dea-4b42ceed65d6
 # ╠═7335de44-042f-11eb-2873-8bceef722432
 # ╟─61789646-0403-11eb-0042-f3b8308f11ba
