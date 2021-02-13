@@ -312,9 +312,6 @@ md"""
 👉 What shape does the distribution seem to have? Can you verify that by adding a second plot with the expected shape?
 """
 
-# ╔═╡ 3d29e820-6def-11eb-32cd-0f4ffc582b38
-experiment = do_experiment(p_interactive, N_interactive)
-
 # ╔═╡ 3461f0d0-6dee-11eb-3dad-6b63cf95a6a6
 begin
 	struct Geometric{T <: Real}
@@ -331,7 +328,8 @@ let
 	experiment = do_experiment(p_interactive, N_interactive)
 	frequencies_plot_with_mean(experiment)
 	geometric = Geometric(p_interactive)
-	plot!(pdf.(Ref(geometric), sort(unique(experiment))), label="geometric pdf")
+	x = sort(unique(experiment))
+	plot!(x, pdf.(Ref(geometric), x), label="geometric pdf")
 end
 
 # ╔═╡ 20f376d0-6def-11eb-1a9a-37296964fab7
@@ -345,7 +343,12 @@ md"""
 """
 
 # ╔═╡ 7335de44-042f-11eb-2873-8bceef722432
-
+let
+	p = 0.001:0.001:1
+	N = 10_000
+	mean_times = mean.(do_experiment.(p, N))
+	plot(p, mean_times)
+end
 
 # ╔═╡ 61789646-0403-11eb-0042-f3b8308f11ba
 md"""
@@ -1121,7 +1124,6 @@ bigbreak
 # ╠═47aae16e-6ded-11eb-1c7e-dfff6c5b3c78
 # ╟─bb8aeb58-042f-11eb-18b8-f995631df619
 # ╟─778ec25c-0403-11eb-3146-1d11c294bb1f
-# ╠═3d29e820-6def-11eb-32cd-0f4ffc582b38
 # ╠═3461f0d0-6dee-11eb-3dad-6b63cf95a6a6
 # ╠═20f376d0-6def-11eb-1a9a-37296964fab7
 # ╟─77db111e-0403-11eb-2dea-4b42ceed65d6
