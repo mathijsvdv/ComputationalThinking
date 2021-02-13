@@ -16,16 +16,17 @@ end
 # ╔═╡ 12cc2940-0403-11eb-19a7-bb570de58f6f
 begin
 	using Pkg
-	Pkg.activate(mktempdir())
+	# Pkg.activate(mktempdir())
 end
 
 # ╔═╡ 15187690-0403-11eb-2dfd-fd924faa3513
 begin
-	Pkg.add(["Plots", "PlutoUI",])
+	Pkg.add(["Plots", "PlutoUI", "StatPlots"])
 
 	using Plots
 	plotly()
 	using PlutoUI
+	using StatPlots
 end
 
 # ╔═╡ 01341648-0403-11eb-2212-db450c299f35
@@ -280,7 +281,6 @@ mean(data) = sum(data) / length(data)
 
 # ╔═╡ f1f89502-0494-11eb-2303-0b79d8bbd13f
 function frequencies_plot_with_mean(data)
-	# start out by copying the frequencies_plot_with_maximum function
 	base = bar(frequencies(data))
 	vline!(base, [mean(data)], label="mean")
 	
@@ -295,11 +295,44 @@ md"""
 👉 Write an interactive visualization that draws the histogram and mean for $p$ between $0.01$ (not $0$!) and $1$, and $N$ between $1$ and $100,000$, say. To avoid a naming conflict, call them `p_interactive` and `N_interactive`, instead of just `p` and `N`.
 """
 
+# ╔═╡ 6581bbb0-6e42-11eb-2097-6d384627c38f
+let
+	ctg = repeat(["Category 1", "Category 2"], inner = 5)
+	nam = repeat("G" .* string.(1:5), outer = 2)
+	nam
+	
+	# groupedbar(nam, rand(5, 2), group = ctg, xlabel = "Groups", ylabel = "Scores",
+	# title = "Scores by group and category", bar_width = 0.67,
+	# lw = 0, framestyle = :box)
+	
+end
+
+# ╔═╡ 70005920-6e42-11eb-1900-17ddc784e323
+
+
 # ╔═╡ bb63f3cc-042f-11eb-04ff-a128aec3c378
 @bind p_interactive Slider(0.01:0.01:1, default=0.5, show_value=true)
 
 # ╔═╡ 15ee5632-6ded-11eb-00c2-fb6dd7ac5502
 @bind N_interactive Slider(1:100_000, default=10_000, show_value=true)
+
+# ╔═╡ 62275b30-6e44-11eb-3ab6-a75dca49f864
+ex_interactive = do_experiment(p_interactive, N_interactive)
+
+# ╔═╡ da6acad0-6e46-11eb-32e2-0789449cad22
+
+
+# ╔═╡ 5b81bcc0-6e45-11eb-3c4e-b160e89f4a56
+
+
+# ╔═╡ 20117aa0-6e44-11eb-075d-15e6467fdc14
+
+
+# ╔═╡ 09367f0e-6e44-11eb-39f9-e16a937ca2a2
+freq[1]
+
+# ╔═╡ 56c30af2-6e3f-11eb-211a-c96a30ceecfa
+
 
 # ╔═╡ bb8aeb58-042f-11eb-18b8-f995631df619
 md"""
@@ -323,13 +356,24 @@ begin
 	end
 end
 
+# ╔═╡ 07cae550-6e3d-11eb-2824-f7f2e9fb283d
+function frequencies_plot_with_pdf(data, distr)
+	freq = frequencies(data)
+	τ = 1:maximum(keys(freq))
+	freq_values = get.(Ref(freq), τ, 0.0)
+	pdf_values = pdf.(Ref(distr), τ)
+	freq_pdf = repeat(["Empirical", "True PDF"], inner = length(τ))
+	
+	base = groupedbar(repeat(τ, outer=2), [freq_values; pdf_values], 
+		group=freq_pdf, ylabel="Frequency")	
+	vline!(base, [mean(data)], label="mean")
+	
+	return base
+end
+
 # ╔═╡ 47aae16e-6ded-11eb-1c7e-dfff6c5b3c78
 let
-	experiment = do_experiment(p_interactive, N_interactive)
-	frequencies_plot_with_mean(experiment)
-	geometric = Geometric(p_interactive)
-	x = sort(unique(experiment))
-	plot!(x, pdf.(Ref(geometric), x), label="geometric pdf")
+	frequencies_plot_with_pdf(ex_interactive, Geometric(p_interactive))
 end
 
 # ╔═╡ 20f376d0-6def-11eb-1a9a-37296964fab7
@@ -1119,9 +1163,18 @@ bigbreak
 # ╠═f1f89502-0494-11eb-2303-0b79d8bbd13f
 # ╠═06089d1e-0495-11eb-0ace-a7a7dc60e5b2
 # ╟─77b54c10-0403-11eb-16ad-65374d29a817
+# ╠═6581bbb0-6e42-11eb-2097-6d384627c38f
+# ╠═70005920-6e42-11eb-1900-17ddc784e323
+# ╠═07cae550-6e3d-11eb-2824-f7f2e9fb283d
 # ╠═bb63f3cc-042f-11eb-04ff-a128aec3c378
 # ╠═15ee5632-6ded-11eb-00c2-fb6dd7ac5502
+# ╠═62275b30-6e44-11eb-3ab6-a75dca49f864
 # ╠═47aae16e-6ded-11eb-1c7e-dfff6c5b3c78
+# ╠═da6acad0-6e46-11eb-32e2-0789449cad22
+# ╠═5b81bcc0-6e45-11eb-3c4e-b160e89f4a56
+# ╠═20117aa0-6e44-11eb-075d-15e6467fdc14
+# ╠═09367f0e-6e44-11eb-39f9-e16a937ca2a2
+# ╠═56c30af2-6e3f-11eb-211a-c96a30ceecfa
 # ╟─bb8aeb58-042f-11eb-18b8-f995631df619
 # ╟─778ec25c-0403-11eb-3146-1d11c294bb1f
 # ╠═3461f0d0-6dee-11eb-3dad-6b63cf95a6a6
