@@ -424,7 +424,7 @@ We have just defined a new type `InfectionStatus`, as well as names `S`, `I` and
 """
 
 # ╔═╡ 7f4e121c-041d-11eb-0dff-cd0cbfdfd606
-test_status = missing
+test_status = S
 
 # ╔═╡ 7f744644-041d-11eb-08a0-3719cc0adeb7
 md"""
@@ -432,12 +432,15 @@ md"""
 """
 
 # ╔═╡ 88c53208-041d-11eb-3b1e-31b57ba99f05
-
+typeof(test_status)
 
 # ╔═╡ 847d0fc2-041d-11eb-2864-79066e223b45
 md"""
 👉 Convert `x` to an integer using the `Integer` function. What value does it have? What values do `I` and `R` have?
 """
+
+# ╔═╡ d80a14ae-6ed9-11eb-156f-9bf0c631d727
+Integer(test_status)
 
 # ╔═╡ 860790fc-0403-11eb-2f2e-355f77dcc7af
 md"""
@@ -447,9 +450,13 @@ For each agent we want to keep track of its infection status and the number of *
 """
 
 # ╔═╡ ae4ac4b4-041f-11eb-14f5-1bcde35d18f2
-mutable struct Agent
-	status::InfectionStatus
-	num_infected::Int64
+begin
+	mutable struct Agent
+		status::InfectionStatus
+		num_infected::Int64		
+	end
+	
+	Agent() = Agent(S, 0)
 end
 
 # ╔═╡ ae70625a-041f-11eb-3082-0753419d6d57
@@ -460,7 +467,7 @@ When you define a new type like this, Julia automatically defines one or more **
 """
 
 # ╔═╡ 60a8b708-04c8-11eb-37b1-3daec644ac90
-
+methods(Agent)
 
 # ╔═╡ 189cae1e-0424-11eb-2666-65bf297d8bdd
 md"""
@@ -468,7 +475,7 @@ md"""
 """
 
 # ╔═╡ 18d308c4-0424-11eb-176d-49feec6889cf
-test_agent = missing
+test_agent = Agent(S, 0)
 
 # ╔═╡ 190deebc-0424-11eb-19fe-615997093e14
 md"""
@@ -492,8 +499,12 @@ md"""
 
 # ╔═╡ 98beb336-0425-11eb-3886-4f8cfd210288
 function set_status!(agent::Agent, new_status::InfectionStatus)
-	
-	# your code here
+	agent.status = new_status
+end
+
+# ╔═╡ a7a8b730-6eda-11eb-0f0b-d3f6b761a174
+function set_num_infected!(agent::Agent, new_num_infected::Int64)
+	agent.num_infected = new_num_infected
 end
 
 # ╔═╡ 866299e8-0403-11eb-085d-2b93459cc141
@@ -505,13 +516,13 @@ md"""
 # ╔═╡ 9a837b52-0425-11eb-231f-a74405ff6e23
 function is_susceptible(agent::Agent)
 	
-	return missing
+	return agent.status == S
 end
 
 # ╔═╡ a8dd5cae-0425-11eb-119c-bfcbf832d695
 function is_infected(agent::Agent)
 	
-	return missing
+	return agent.status == I
 end
 
 # ╔═╡ 8692bf42-0403-11eb-191f-b7d08895274f
@@ -523,8 +534,10 @@ md"""
 
 # ╔═╡ 7946d83a-04a0-11eb-224b-2b315e87bc84
 function generate_agents(N::Integer)
+	agents = [Agent() for i ∈ 1:N]
+	set_status!(rand(agents), I)
 	
-	return missing
+	return agents
 end
 
 # ╔═╡ 488771e2-049f-11eb-3b0a-0de260457731
@@ -541,9 +554,9 @@ Let's define an (immutable) `struct` called `InfectionRecovery` with parameters 
 abstract type AbstractInfection end
 
 # ╔═╡ 1a654bdc-0421-11eb-2c38-7d35060e2565
-struct InfectionRecovery <: AbstractInfection
-	p_infection
-	p_recovery
+struct InfectionRecovery{TI<:Real, TR<:Real} <: AbstractInfection
+	p_infection::TI
+	p_recovery::TR
 end
 
 # ╔═╡ 2d3bba2a-04a8-11eb-2c40-87794b6aeeac
@@ -558,9 +571,32 @@ md"""
 $(html"<span id=interactfunction></span>")
 """
 
+# ╔═╡ 1365dd10-6ede-11eb-08f7-fbf9c19e2a4a
+md"**Mathijs note:** I find it a bit strange that recovery occurs during `interact!`. In principle, recovery is independent of their interaction with other agents (unless a patient is interacting with his doctor I guess :P"
+
+# ╔═╡ b8f24e00-6edc-11eb-2ea5-f1208183ec5a
+function infect!(agent::Agent, source::Agent)
+	set_status!(agent, I)
+	set_num_infected!(source, source.num_infected + 1)
+end
+
+# ╔═╡ 60525b90-6edd-11eb-0052-63cde4afde91
+function recover!(agent::Agent)
+	set_status!(agent, R)
+end
+
 # ╔═╡ 406aabea-04a5-11eb-06b8-312879457c42
 function interact!(agent::Agent, source::Agent, infection::InfectionRecovery)
-	# your code here
+	if is_susceptible(agent) && is_infected(source)
+		if rand() < infection.p_infection
+			infect!(agent, source)
+		end
+		
+	elseif is_infected(agent)
+		if rand() < infection.p_recovery
+			recover!(agent)
+		end
+	end
 end
 
 # ╔═╡ b21475c6-04ac-11eb-1366-f3b5e967402d
@@ -953,7 +989,7 @@ else
 	end
 end
 
-# ╔═╡ 7c515a7a-04d5-11eb-0f36-4fcebff709d5
+# ╔═╡ edee10a0-6eda-11eb-1e08-b902dff937c0
 if !@isdefined(set_status!)
 	not_defined(:set_status!)
 else
@@ -963,6 +999,23 @@ else
 		set_status!(agent, R)
 		
 		if agent.status == R
+			correct()
+		else
+			keep_working()
+		end
+	end
+end
+
+# ╔═╡ c27bc7f0-6eda-11eb-3abe-ab6ea0b928b3
+if !@isdefined(set_num_infected!)
+	not_defined(:set_num_infected!)
+else
+	let
+		agent = Agent(I,2)
+		
+		set_num_infected!(agent, 4)
+		
+		if agent.num_infected == 4
 			correct()
 		else
 			keep_working()
@@ -1188,6 +1241,7 @@ bigbreak
 # ╟─7f744644-041d-11eb-08a0-3719cc0adeb7
 # ╠═88c53208-041d-11eb-3b1e-31b57ba99f05
 # ╟─847d0fc2-041d-11eb-2864-79066e223b45
+# ╠═d80a14ae-6ed9-11eb-156f-9bf0c631d727
 # ╟─860790fc-0403-11eb-2f2e-355f77dcc7af
 # ╠═ae4ac4b4-041f-11eb-14f5-1bcde35d18f2
 # ╟─ae70625a-041f-11eb-3082-0753419d6d57
@@ -1198,7 +1252,9 @@ bigbreak
 # ╠═82f2580a-04c8-11eb-1eea-bdb4e50eee3b
 # ╟─8631a536-0403-11eb-0379-bb2e56927727
 # ╠═98beb336-0425-11eb-3886-4f8cfd210288
-# ╟─7c515a7a-04d5-11eb-0f36-4fcebff709d5
+# ╟─edee10a0-6eda-11eb-1e08-b902dff937c0
+# ╠═a7a8b730-6eda-11eb-0f0b-d3f6b761a174
+# ╟─c27bc7f0-6eda-11eb-3abe-ab6ea0b928b3
 # ╟─866299e8-0403-11eb-085d-2b93459cc141
 # ╠═9a837b52-0425-11eb-231f-a74405ff6e23
 # ╠═a8dd5cae-0425-11eb-119c-bfcbf832d695
@@ -1211,6 +1267,9 @@ bigbreak
 # ╠═223933a4-042c-11eb-10d3-852229f25a35
 # ╠═1a654bdc-0421-11eb-2c38-7d35060e2565
 # ╟─2d3bba2a-04a8-11eb-2c40-87794b6aeeac
+# ╟─1365dd10-6ede-11eb-08f7-fbf9c19e2a4a
+# ╠═b8f24e00-6edc-11eb-2ea5-f1208183ec5a
+# ╠═60525b90-6edd-11eb-0052-63cde4afde91
 # ╠═406aabea-04a5-11eb-06b8-312879457c42
 # ╟─b21475c6-04ac-11eb-1366-f3b5e967402d
 # ╠═9c39974c-04a5-11eb-184d-317eb542452c
