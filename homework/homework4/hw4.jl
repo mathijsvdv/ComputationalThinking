@@ -21,12 +21,13 @@ end
 
 # ╔═╡ 15187690-0403-11eb-2dfd-fd924faa3513
 begin
-	Pkg.add(["Plots", "PlutoUI", "StatPlots"])
+	Pkg.add(["Plots", "PlutoUI", "StatsPlots", "StatsBase"])
 
 	using Plots
 	plotly()
 	using PlutoUI
-	using StatPlots
+	using StatsPlots
+	using StatsBase
 end
 
 # ╔═╡ 01341648-0403-11eb-2212-db450c299f35
@@ -276,9 +277,6 @@ md"""
 👉 Write the function `frequencies_plot_with_mean` that calculates the mean recovery time and displays it using a vertical line. 
 """
 
-# ╔═╡ a8318860-6dec-11eb-276b-052effc35cdf
-mean(data) = sum(data) / length(data)
-
 # ╔═╡ f1f89502-0494-11eb-2303-0b79d8bbd13f
 function frequencies_plot_with_mean(data)
 	base = bar(frequencies(data))
@@ -457,6 +455,9 @@ begin
 	end
 	
 	Agent() = Agent(S, 0)
+	
+	get_status(a::Agent) = a.status
+	get_num_infected(a::Agent) = a.num_infected
 end
 
 # ╔═╡ ae70625a-041f-11eb-3082-0753419d6d57
@@ -577,7 +578,7 @@ md"**Mathijs note:** I find it a bit strange that recovery occurs during `intera
 # ╔═╡ b8f24e00-6edc-11eb-2ea5-f1208183ec5a
 function infect!(agent::Agent, source::Agent)
 	set_status!(agent, I)
-	set_num_infected!(source, source.num_infected + 1)
+	set_num_infected!(source, get_num_infected(source) + 1)
 end
 
 # ╔═╡ 60525b90-6edd-11eb-0052-63cde4afde91
@@ -635,9 +636,17 @@ You should not use any global variables inside the functions: Each function must
 
 """
 
+# ╔═╡ 4dc6e730-6ee1-11eb-2a4a-e1e043606831
+let
+	agents = [Agent(I, 0), Agent(), Agent()]
+	agent, source = sample(agents, 2, replace=false)
+end
+
 # ╔═╡ 2ade2694-0425-11eb-2fb2-390da43d9695
 function step!(agents::Vector{Agent}, infection::AbstractInfection)
-	# your code here
+	agent, source = sample(agents, 2, replace=false, ordered=false)
+	interact!(agent, source, infection)
+	return agents
 end
 
 # ╔═╡ 955321de-0403-11eb-04ce-fb1670dfbb9e
@@ -647,7 +656,9 @@ md"""
 
 # ╔═╡ 46133a74-04b1-11eb-0b46-0bc74e564680
 function sweep!(agents::Vector{Agent}, infection::AbstractInfection)
-	# your code here
+	for i ∈ 1:length(agents)
+		step!(agents, infection) 
+	end
 end
 
 # ╔═╡ 95771ce2-0403-11eb-3056-f1dc3a8b7ec3
@@ -665,16 +676,51 @@ You've seen an example of named tuples before: the `student` variable at the top
 _Feel free to store the counts in a different way, as long as the return type is the same._
 """
 
+# ╔═╡ 686e25a0-6ee4-11eb-1756-49209ede7a9d
+countmap([S, I, R, I, S])
+
+# ╔═╡ 46d3f5a0-6eee-11eb-1555-edf0520900eb
+let 
+	agents = generate_agents(10)
+	counts = countmap(get_status.(agents))
+	S_counts = get(counts, I, 0)
+	S_counts
+end
+
+# ╔═╡ 6c3a47d0-6eef-11eb-2f5d-ff38ef13ec86
+begin
+	function count_sir(v_sir::AbstractVector{InfectionStatus})
+		counts = countmap(v_sir)
+		S_counts, I_counts, R_counts = get.(Ref(counts), (S, I, R), 0)
+		return (S=S_counts, I=I_counts, R=R_counts)
+	end
+	
+	function count_sir(agents::AbstractVector{Agent})
+		return count_sir(get_status.(agents))
+	end
+end
+
+
 # ╔═╡ 887d27fc-04bc-11eb-0ab9-eb95ef9607f8
 function simulation(N::Integer, T::Integer, infection::AbstractInfection)
-
-	# your code here
+	agents = generate_agents(N)
+	S_counts = Vector{Int64}(undef, T)
+	I_counts = Vector{Int64}(undef, T)
+	R_counts = Vector{Int64}(undef, T)
 	
-	return (S=missing, I=missing, R=missing)
+	for t ∈ 1:T
+		sweep!(agents, infection)
+		S_counts[t], I_counts[t], R_counts[t] = count_sir(agents)
+	end
+		
+	return (S=S_counts, I=I_counts, R=R_counts)
 end
 
 # ╔═╡ b92f1cec-04ae-11eb-0072-3535d1118494
 simulation(3, 20, InfectionRecovery(0.9, 0.2))
+
+# ╔═╡ b7de8780-6ef1-11eb-0532-258ef5ddd791
+@code_warntype simulation(3, 20, InfectionRecovery(0.9, 0.2))
 
 # ╔═╡ 2c62b4ae-04b3-11eb-0080-a1035a7e31a2
 simulation(100, 1000, InfectionRecovery(0.005, 0.2))
@@ -1212,7 +1258,6 @@ bigbreak
 # ╠═1ddbaa18-0494-11eb-1fc8-250ab6ae89f1
 # ╟─f3f81172-041c-11eb-2b9b-e99b7b9400ed
 # ╟─7768a2dc-0403-11eb-39b7-fd660dc952fe
-# ╠═a8318860-6dec-11eb-276b-052effc35cdf
 # ╠═f1f89502-0494-11eb-2303-0b79d8bbd13f
 # ╠═06089d1e-0495-11eb-0ace-a7a7dc60e5b2
 # ╟─77b54c10-0403-11eb-16ad-65374d29a817
@@ -1277,15 +1322,20 @@ bigbreak
 # ╟─1491a078-04aa-11eb-0106-19a3cf1e94b0
 # ╟─f8e05d94-04ac-11eb-26d4-6f1d2c5ed272
 # ╟─619c8a10-0403-11eb-2e89-8b0974fb01d0
+# ╠═4dc6e730-6ee1-11eb-2a4a-e1e043606831
 # ╠═2ade2694-0425-11eb-2fb2-390da43d9695
 # ╟─955321de-0403-11eb-04ce-fb1670dfbb9e
 # ╠═46133a74-04b1-11eb-0b46-0bc74e564680
 # ╟─95771ce2-0403-11eb-3056-f1dc3a8b7ec3
+# ╠═686e25a0-6ee4-11eb-1756-49209ede7a9d
+# ╠═46d3f5a0-6eee-11eb-1555-edf0520900eb
+# ╠═6c3a47d0-6eef-11eb-2f5d-ff38ef13ec86
 # ╠═887d27fc-04bc-11eb-0ab9-eb95ef9607f8
 # ╠═b92f1cec-04ae-11eb-0072-3535d1118494
+# ╠═b7de8780-6ef1-11eb-0532-258ef5ddd791
 # ╠═2c62b4ae-04b3-11eb-0080-a1035a7e31a2
 # ╠═c5156c72-04af-11eb-1106-b13969b036ca
-# ╟─28db9d98-04ca-11eb-3606-9fb89fa62f36
+# ╠═28db9d98-04ca-11eb-3606-9fb89fa62f36
 # ╟─0a967f38-0493-11eb-0624-77e40b24d757
 # ╟─bf6fd176-04cc-11eb-008a-2fb6ff70a9cb
 # ╠═38b1aa5a-04cf-11eb-11a2-930741fc9076
