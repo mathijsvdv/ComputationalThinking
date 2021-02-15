@@ -21,13 +21,15 @@ end
 
 # ╔═╡ 15187690-0403-11eb-2dfd-fd924faa3513
 begin
-	Pkg.add(["Plots", "PlutoUI", "StatsPlots", "StatsBase"])
+	Pkg.add(["Plots", "PlutoUI", "StatsPlots", "StatsBase", "BenchmarkTools"])
 
 	using Plots
 	plotly()
 	using PlutoUI
 	using StatsPlots
 	using StatsBase
+	using BenchmarkTools
+	import StatsBase: std
 end
 
 # ╔═╡ 01341648-0403-11eb-2212-db450c299f35
@@ -316,21 +318,6 @@ end
 
 # ╔═╡ 62275b30-6e44-11eb-3ab6-a75dca49f864
 ex_interactive = do_experiment(p_interactive, N_interactive)
-
-# ╔═╡ da6acad0-6e46-11eb-32e2-0789449cad22
-
-
-# ╔═╡ 5b81bcc0-6e45-11eb-3c4e-b160e89f4a56
-
-
-# ╔═╡ 20117aa0-6e44-11eb-075d-15e6467fdc14
-
-
-# ╔═╡ 09367f0e-6e44-11eb-39f9-e16a937ca2a2
-freq[1]
-
-# ╔═╡ 56c30af2-6e3f-11eb-211a-c96a30ceecfa
-
 
 # ╔═╡ bb8aeb58-042f-11eb-18b8-f995631df619
 md"""
@@ -716,6 +703,13 @@ function simulation(N::Integer, T::Integer, infection::AbstractInfection)
 	return (S=S_counts, I=I_counts, R=R_counts)
 end
 
+# ╔═╡ 42ba85a0-6fc6-11eb-0526-53cd89c01dfc
+begin
+	get_S(sim) = sim.S
+	get_I(sim) = sim.I
+	get_R(sim) = sim.R
+end
+
 # ╔═╡ b92f1cec-04ae-11eb-0072-3535d1118494
 simulation(3, 20, InfectionRecovery(0.9, 0.2))
 
@@ -798,6 +792,37 @@ md"""
 In the cell below, we plot the evolution of the number of $I$ individuals as a function of time for each of the simulations on the same plot using transparency (`alpha=0.5` inside the plot command).
 """
 
+# ╔═╡ c7d18690-6fc5-11eb-24e7-e1e0c50aac92
+reduce(hcat, []; init=[])
+
+# ╔═╡ afbe03a0-6fc8-11eb-2f5d-d36ad20b9daa
+begin
+	function get_sir_agg(simulations::AbstractVector{<:NamedTuple}, 
+			get_sir::Function, agg::Function)
+		
+		arr = reduce(hcat, get_sir.(simulations))
+		return agg(arr, dims=2)
+	end
+	
+	get_I_mean(simulations::AbstractVector{<:NamedTuple}) = get_sir_agg(
+		simulations, get_I, mean)
+	get_S_mean(simulations::AbstractVector{<:NamedTuple}) = get_sir_agg(
+		simulations, get_S, mean)
+	get_R_mean(simulations::AbstractVector{<:NamedTuple}) = get_sir_agg(
+		simulations, get_R, mean)
+end
+
+# ╔═╡ 259922a0-6fc7-11eb-35f9-05ba7efbb7d4
+function get_I_mean2(simulations::AbstractVector{<:NamedTuple})
+	return mean(get_I.(simulations))
+end
+
+# ╔═╡ ed6d8ec0-6fc6-11eb-1997-336c263eed73
+@benchmark get_I_mean(simulations)
+
+# ╔═╡ 236f3dbe-6fc7-11eb-3a0b-ef95df976ce3
+@benchmark get_I_mean2(simulations)
+
 # ╔═╡ 9cd2bb00-04b1-11eb-1d83-a703907141a7
 let
 	p = plot()
@@ -806,7 +831,8 @@ let
 		plot!(p, 1:1000, sim.I, alpha=.5, label=nothing)
 	end
 	
-	p
+	I_mean = get_I_mean(simulations)
+	plot!(p, I_mean, label="Mean infectious agents", lw=3) 
 end
 
 # ╔═╡ 95c598d4-0403-11eb-2328-0175ed564915
@@ -815,11 +841,17 @@ md"""
 """
 
 # ╔═╡ 843fd63c-04d0-11eb-0113-c58d346179d6
-function sir_mean_plot(simulations::Vector{<:NamedTuple})
+function sir_mean_plot(simulations::AbstractVector{<:NamedTuple}; kw...)
 	# you might need T for this function, here's a trick to get it:
 	T = length(first(simulations).S)
+	S_mean = get_S_mean(simulations)
+	I_mean = get_I_mean(simulations)
+	R_mean = get_R_mean(simulations)
 	
-	return missing
+	p = plot(1:T, [S_mean I_mean R_mean], 
+		label=["Susceptible" "Infectious" "Recovered"]; kw...)
+	
+	return p
 end
 
 # ╔═╡ 7f635722-04d0-11eb-3209-4b603c9e843c
@@ -830,8 +862,17 @@ md"""
 👉 Allow $p_\text{infection}$ and $p_\text{recovery}$ to be changed interactively and find parameter values for which you observe an epidemic outbreak.
 """
 
-# ╔═╡ 1c6aa208-04d1-11eb-0b87-cf429e6ff6d0
+# ╔═╡ 11decb30-6fcb-11eb-2858-17d911c0ad58
+md"With the default recovery value 0.002, an epidemic seems to start already at an infection rate of 1.5%. This raises the peak to around 40%. The peak goes to as much as 75% when the infection rate crosses 4%. The peak also occurs earlier.
 
+However, the recovery rate has a large impact on the epidemiology as well. Raising the recovery rate to 1% makes it so that the peak at 4% infection rate is lowered to 33.5%.
+"
+
+# ╔═╡ 1c6aa208-04d1-11eb-0b87-cf429e6ff6d0
+@bind p_infection Slider(0.001:0.001:0.1, default=0.02, show_value=true)
+
+# ╔═╡ 31416ba2-6fca-11eb-1a09-b3d034ed8bc0
+@bind p_recovery Slider(0.001:0.001:0.1, default=0.002, show_value=true)
 
 # ╔═╡ 95eb9f88-0403-11eb-155b-7b2d3a07cff0
 md"""
@@ -840,12 +881,42 @@ md"""
 This should confirm that the distribution of $I$ at each step is pretty wide!
 """
 
+# ╔═╡ 3e049320-6fd0-11eb-28f9-516849273c3d
+md"**Mathijs note:** I've found `ribbon=σ` to work better here. There are so many points to plot that the 'error bars' are more clearly represented using a shaded area."
+
+# ╔═╡ f360f000-6fcc-11eb-3d9c-87a5200303e9
+begin	
+	get_S_std(simulations::AbstractVector{<:NamedTuple}) = get_sir_agg(
+		simulations, get_S, std)
+	get_I_std(simulations::AbstractVector{<:NamedTuple}) = get_sir_agg(
+		simulations, get_I, std)
+	get_R_std(simulations::AbstractVector{<:NamedTuple}) = get_sir_agg(
+		simulations, get_R, std)
+end
+
 # ╔═╡ 287ee7aa-0435-11eb-0ca3-951dbbe69404
-function sir_mean_error_plot(simulations::Vector{<:NamedTuple})
+function sir_mean_error_plot(simulations::AbstractVector{<:NamedTuple})
 	# you might need T for this function, here's a trick to get it:
 	T = length(first(simulations).S)
 	
-	return missing
+	S_std = get_S_std(simulations)
+	I_std = get_I_std(simulations)
+	R_std = get_R_std(simulations)
+	σ = [S_std I_std R_std]
+	
+	p = sir_mean_plot(simulations, ribbon=σ, fillalpha=0.5)
+	
+	return p
+end
+
+# ╔═╡ 3dbaeeb0-6fca-11eb-0fc4-df1b2484d885
+let
+	infection = InfectionRecovery(p_infection, p_recovery)
+	N = 100
+	T = 1000
+	num_simulations = 20
+	simulations = repeat_simulations(N, T, infection, num_simulations)
+	sir_mean_error_plot(simulations)
 end
 
 # ╔═╡ 9611ca24-0403-11eb-3582-b7e3bb243e62
@@ -1268,11 +1339,6 @@ bigbreak
 # ╠═15ee5632-6ded-11eb-00c2-fb6dd7ac5502
 # ╠═62275b30-6e44-11eb-3ab6-a75dca49f864
 # ╠═47aae16e-6ded-11eb-1c7e-dfff6c5b3c78
-# ╠═da6acad0-6e46-11eb-32e2-0789449cad22
-# ╠═5b81bcc0-6e45-11eb-3c4e-b160e89f4a56
-# ╠═20117aa0-6e44-11eb-075d-15e6467fdc14
-# ╠═09367f0e-6e44-11eb-39f9-e16a937ca2a2
-# ╠═56c30af2-6e3f-11eb-211a-c96a30ceecfa
 # ╟─bb8aeb58-042f-11eb-18b8-f995631df619
 # ╟─778ec25c-0403-11eb-3146-1d11c294bb1f
 # ╠═3461f0d0-6dee-11eb-3dad-6b63cf95a6a6
@@ -1331,6 +1397,7 @@ bigbreak
 # ╠═46d3f5a0-6eee-11eb-1555-edf0520900eb
 # ╠═6c3a47d0-6eef-11eb-2f5d-ff38ef13ec86
 # ╠═887d27fc-04bc-11eb-0ab9-eb95ef9607f8
+# ╠═42ba85a0-6fc6-11eb-0526-53cd89c01dfc
 # ╠═b92f1cec-04ae-11eb-0072-3535d1118494
 # ╠═b7de8780-6ef1-11eb-0532-258ef5ddd791
 # ╠═2c62b4ae-04b3-11eb-0080-a1035a7e31a2
@@ -1341,14 +1408,24 @@ bigbreak
 # ╠═38b1aa5a-04cf-11eb-11a2-930741fc9076
 # ╠═80c2cd88-04b1-11eb-326e-0120a39405ea
 # ╟─80e6f1e0-04b1-11eb-0d4e-475f1d80c2bb
+# ╠═c7d18690-6fc5-11eb-24e7-e1e0c50aac92
+# ╠═afbe03a0-6fc8-11eb-2f5d-d36ad20b9daa
+# ╠═259922a0-6fc7-11eb-35f9-05ba7efbb7d4
+# ╠═ed6d8ec0-6fc6-11eb-1997-336c263eed73
+# ╠═236f3dbe-6fc7-11eb-3a0b-ef95df976ce3
 # ╠═9cd2bb00-04b1-11eb-1d83-a703907141a7
 # ╟─9cf9080a-04b1-11eb-12a0-17013f2d37f5
 # ╟─95c598d4-0403-11eb-2328-0175ed564915
 # ╠═843fd63c-04d0-11eb-0113-c58d346179d6
 # ╠═7f635722-04d0-11eb-3209-4b603c9e843c
 # ╟─dfb99ace-04cf-11eb-0739-7d694c837d59
+# ╠═11decb30-6fcb-11eb-2858-17d911c0ad58
 # ╠═1c6aa208-04d1-11eb-0b87-cf429e6ff6d0
+# ╠═31416ba2-6fca-11eb-1a09-b3d034ed8bc0
+# ╠═3dbaeeb0-6fca-11eb-0fc4-df1b2484d885
 # ╟─95eb9f88-0403-11eb-155b-7b2d3a07cff0
+# ╠═3e049320-6fd0-11eb-28f9-516849273c3d
+# ╠═f360f000-6fcc-11eb-3d9c-87a5200303e9
 # ╠═287ee7aa-0435-11eb-0ca3-951dbbe69404
 # ╟─9611ca24-0403-11eb-3582-b7e3bb243e62
 # ╠═26e2978e-0435-11eb-0d61-25f552d2771e
