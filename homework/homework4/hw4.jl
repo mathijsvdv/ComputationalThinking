@@ -689,18 +689,26 @@ end
 
 
 # ╔═╡ 887d27fc-04bc-11eb-0ab9-eb95ef9607f8
-function simulation(N::Integer, T::Integer, infection::AbstractInfection)
-	agents = generate_agents(N)
-	S_counts = Vector{Int64}(undef, T)
-	I_counts = Vector{Int64}(undef, T)
-	R_counts = Vector{Int64}(undef, T)
-	
-	for t ∈ 1:T
-		sweep!(agents, infection)
-		S_counts[t], I_counts[t], R_counts[t] = count_sir(agents)
+begin
+	function simulation!(agents::AbstractVector{Agent}, T::Integer, 
+			infection::AbstractInfection)
+
+		S_counts = Vector{Int64}(undef, T)
+		I_counts = Vector{Int64}(undef, T)
+		R_counts = Vector{Int64}(undef, T)
+
+		for t ∈ 1:T
+			sweep!(agents, infection)
+			S_counts[t], I_counts[t], R_counts[t] = count_sir(agents)
+		end
+
+		return (S=S_counts, I=I_counts, R=R_counts)
 	end
-		
-	return (S=S_counts, I=I_counts, R=R_counts)
+
+	function simulation(N::Integer, T::Integer, infection::AbstractInfection)
+		agents = generate_agents(N)
+		simulation!(agents, T, infection)
+	end
 end
 
 # ╔═╡ 42ba85a0-6fc6-11eb-0526-53cd89c01dfc
@@ -927,8 +935,17 @@ md"""
 
 """
 
-# ╔═╡ 26e2978e-0435-11eb-0d61-25f552d2771e
+# ╔═╡ a777a500-715f-11eb-31e2-3baae340907c
+md"This model involves competing risks, where the probability of infection competes with the probability of recovery. In a similar vein as Exercise 1, instead of the time to recovery, this quantity captures the number of infections to recovery. Hence I would expect a geometric distribution."
 
+# ╔═╡ 26e2978e-0435-11eb-0d61-25f552d2771e
+let
+	agents = generate_agents(1000)
+	T = 1000
+	sim = simulation!(agents, 10000, InfectionRecovery(0.02, 0.002))
+	
+	histogram(get_num_infected.(agents))
+end
 
 # ╔═╡ 9635c944-0403-11eb-3982-4df509f6a556
 md"""
@@ -938,7 +955,46 @@ md"""
 """
 
 # ╔═╡ 4ad11052-042c-11eb-3643-8b2b3e1269bc
+md"**Max percentage infected**: the peak of infections gives an indication whether hospitals can cope with the epidemic.
 
+**Total Infected + recovered at time T**: indicates to what extent the epidemic has spread through the population.
+
+**Mean infections per recovered**: Basically the $R_0$: How many people did each infected person go on to infect before recovery? This gives an indication of how quickly the virus spreads. 
+"
+
+# ╔═╡ 5b615050-7162-11eb-0442-d7f2b03cc8d0
+function max_frac_infected(sim::NamedTuple)
+	I_counts = get_I(sim)
+	return maximum(I_counts ./ sum(sim))
+end
+
+# ╔═╡ e96a4950-7163-11eb-22c1-f78d717b3253
+function frac_infected_recovered(sim::NamedTuple)
+	S_counts = get_S(sim)
+	I_counts = get_I(sim)
+	R_counts = get_R(sim)
+	
+	return (I_counts[end] + R_counts[end]) / 
+	(S_counts[end] + I_counts[end] + R_counts[end]) 
+end
+
+# ╔═╡ 919743d0-7164-11eb-048f-b5b11338ef3c
+function mean_num_infections(agents::AbstractVector{Agent})
+	
+	# Only the recovered agents because we're interested how many people an infected person goes on to infect before recovery
+	R_agents = filter(a -> a.status == R, agents)
+	
+	return mean(get_num_infected.(R_agents))
+end
+
+# ╔═╡ 2e0d59e0-7163-11eb-0d1c-8bd88d621db0
+let
+	agents = generate_agents(100)
+	T = 500
+	sim = simulation!(agents, T, InfectionRecovery(0.02, 0.002))
+	
+	max_frac_infected(sim), frac_infected_recovered(sim), mean_num_infections(agents)
+end
 
 # ╔═╡ 61c00724-0403-11eb-228d-17c11670e5d1
 md"""
@@ -1428,9 +1484,14 @@ bigbreak
 # ╠═f360f000-6fcc-11eb-3d9c-87a5200303e9
 # ╠═287ee7aa-0435-11eb-0ca3-951dbbe69404
 # ╟─9611ca24-0403-11eb-3582-b7e3bb243e62
+# ╠═a777a500-715f-11eb-31e2-3baae340907c
 # ╠═26e2978e-0435-11eb-0d61-25f552d2771e
 # ╟─9635c944-0403-11eb-3982-4df509f6a556
 # ╠═4ad11052-042c-11eb-3643-8b2b3e1269bc
+# ╠═2e0d59e0-7163-11eb-0d1c-8bd88d621db0
+# ╠═5b615050-7162-11eb-0442-d7f2b03cc8d0
+# ╠═e96a4950-7163-11eb-22c1-f78d717b3253
+# ╠═919743d0-7164-11eb-048f-b5b11338ef3c
 # ╟─61c00724-0403-11eb-228d-17c11670e5d1
 # ╠═8dd97820-04a5-11eb-36c0-8f92d4b859a8
 # ╟─99ef7b2a-0403-11eb-08ef-e1023cd151ae
