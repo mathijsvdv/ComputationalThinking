@@ -536,6 +536,8 @@ md"""
 We will also need types representing different infections. 
 
 Let's define an (immutable) `struct` called `InfectionRecovery` with parameters `p_infection` and `p_recovery`. We will make it a subtype of an abstract `AbstractInfection` type, because we will define more infection types later.
+
+$(html"<span id=infectiontype></span>")
 """
 
 # ╔═╡ 223933a4-042c-11eb-10d3-852229f25a35
@@ -545,6 +547,18 @@ abstract type AbstractInfection end
 struct InfectionRecovery{TI<:Real, TR<:Real} <: AbstractInfection
 	p_infection::TI
 	p_recovery::TR
+end
+
+# ╔═╡ 2d5d20d0-7220-11eb-229d-bfea03196b9a
+struct Reinfection{TI<:Real, TR<:Real} <: AbstractInfection
+	p_infection::TI
+	p_recovery::TR
+end
+
+# ╔═╡ 8f019e5e-7220-11eb-0903-75f037f6a396
+begin
+	get_p_infection(infection) = infection.p_infection
+	get_p_recovery(infection) = infection.p_recovery
 end
 
 # ╔═╡ 2d3bba2a-04a8-11eb-2c40-87794b6aeeac
@@ -560,7 +574,7 @@ $(html"<span id=interactfunction></span>")
 """
 
 # ╔═╡ 1365dd10-6ede-11eb-08f7-fbf9c19e2a4a
-md"**Mathijs note:** I find it a bit strange that recovery occurs during `interact!`. In principle, recovery is independent of their interaction with other agents (unless a patient is interacting with his doctor I guess :P"
+md"**Mathijs note:** I find it a bit strange that recovery occurs during `interact!`. In principle, recovery is independent of their interaction with other agents (unless a patient is interacting with his doctor I guess :P)"
 
 # ╔═╡ b8f24e00-6edc-11eb-2ea5-f1208183ec5a
 function infect!(agent::Agent, source::Agent)
@@ -569,21 +583,41 @@ function infect!(agent::Agent, source::Agent)
 end
 
 # ╔═╡ 60525b90-6edd-11eb-0052-63cde4afde91
-function recover!(agent::Agent)
-	set_status!(agent, R)
+begin
+	function recover!(agent::Agent)
+		set_status!(agent, R)
+	end
+
+	function recover!(agent::Agent, infection::AbstractInfection)
+		recover!(agent::Agent)
+	end
+	
+	function recover!(agent::Agent, infection::Reinfection)
+		set_status!(agent, S)
+	end
+end
+
+# ╔═╡ 523d6f90-7220-11eb-35c3-6f167ccd872c
+begin
+	function try_infect!(agent::Agent, source::Agent, infection::AbstractInfection)
+		if rand() < get_p_infection(infection)
+			infect!(agent, source)
+		end
+	end
+	
+	function try_recover!(agent::Agent, infection::AbstractInfection)
+		if rand() < get_p_recovery(infection)
+			recover!(agent, infection)
+		end
+	end
 end
 
 # ╔═╡ 406aabea-04a5-11eb-06b8-312879457c42
-function interact!(agent::Agent, source::Agent, infection::InfectionRecovery)
+function interact!(agent::Agent, source::Agent, infection::AbstractInfection)
 	if is_susceptible(agent) && is_infected(source)
-		if rand() < infection.p_infection
-			infect!(agent, source)
-		end
-		
+		try_infect!(agent, source, infection)		
 	elseif is_infected(agent)
-		if rand() < infection.p_recovery
-			recover!(agent)
-		end
+		try_recover!(agent, infection)
 	end
 end
 
@@ -1009,7 +1043,7 @@ This new type `Reinfection` should also be a **subtype** of `AbstractInfection`.
 """
 
 # ╔═╡ 8dd97820-04a5-11eb-36c0-8f92d4b859a8
-
+md"See [the infection types](#infectiontypes)"
 
 # ╔═╡ 99ef7b2a-0403-11eb-08ef-e1023cd151ae
 md"""
@@ -1029,7 +1063,22 @@ Note that you should be able to re-use the `sweep!` and `simulation` functions ,
 """
 
 # ╔═╡ 1ac4b33a-0435-11eb-36f8-8f3f81ae7844
-
+let	
+	infection = Reinfection(0.02, 0.002)
+	N = 100
+	T = 1000
+	simulations = repeat_simulations(N, T, infection, 20) 
+	
+	p = plot()
+	
+	for sim in simulations
+		plot!(p, 1:1000, sim.I, alpha=.5, label=nothing)
+	end
+	
+	I_mean = get_I_mean(simulations)
+		
+	plot!(p, I_mean, label="Mean infectious agents", lw=3) 
+end
 
 # ╔═╡ 9a377b32-0403-11eb-2799-e7e59caa6a45
 md"""
@@ -1039,7 +1088,7 @@ md"""
 """
 
 # ╔═╡ 21c50840-0435-11eb-1307-7138ecde0691
-
+md"There is no longer a peak in infections which tapers off, the number of infections simply ramps up exponentially until a threshold of satiety is reached."
 
 # ╔═╡ da49710e-0420-11eb-092e-4f1173868738
 md"""
@@ -1433,10 +1482,13 @@ bigbreak
 # ╟─86d98d0a-0403-11eb-215b-c58ad721a90b
 # ╠═223933a4-042c-11eb-10d3-852229f25a35
 # ╠═1a654bdc-0421-11eb-2c38-7d35060e2565
+# ╠═2d5d20d0-7220-11eb-229d-bfea03196b9a
+# ╠═8f019e5e-7220-11eb-0903-75f037f6a396
 # ╟─2d3bba2a-04a8-11eb-2c40-87794b6aeeac
 # ╟─1365dd10-6ede-11eb-08f7-fbf9c19e2a4a
 # ╠═b8f24e00-6edc-11eb-2ea5-f1208183ec5a
 # ╠═60525b90-6edd-11eb-0052-63cde4afde91
+# ╠═523d6f90-7220-11eb-35c3-6f167ccd872c
 # ╠═406aabea-04a5-11eb-06b8-312879457c42
 # ╟─b21475c6-04ac-11eb-1366-f3b5e967402d
 # ╠═9c39974c-04a5-11eb-184d-317eb542452c
@@ -1493,7 +1545,7 @@ bigbreak
 # ╠═e96a4950-7163-11eb-22c1-f78d717b3253
 # ╠═919743d0-7164-11eb-048f-b5b11338ef3c
 # ╟─61c00724-0403-11eb-228d-17c11670e5d1
-# ╠═8dd97820-04a5-11eb-36c0-8f92d4b859a8
+# ╟─8dd97820-04a5-11eb-36c0-8f92d4b859a8
 # ╟─99ef7b2a-0403-11eb-08ef-e1023cd151ae
 # ╟─9a13b17c-0403-11eb-024f-9b37e95e211b
 # ╠═1ac4b33a-0435-11eb-36f8-8f3f81ae7844
