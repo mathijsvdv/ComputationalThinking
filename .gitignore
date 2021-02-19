@@ -23,3 +23,5 @@ docs/site/
 # environment.
 # Manifest.toml
 lecture_notebooks/week3/tree.jpg
+lecture_notebooks/week4/*.csv
+lecture_notebooks/week4/ne_110m_admin_0_countries.*
