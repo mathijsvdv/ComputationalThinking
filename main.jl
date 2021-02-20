@@ -45,3 +45,11 @@ fma(x) = 2
 
 # We can prevent Julia from evaluating an expression by *quoting* it:
 expr = :(1 + 2)
+
+
+struct Point{T}
+    x::T
+    y::T
+end
+
+isabstracttype(Point)
