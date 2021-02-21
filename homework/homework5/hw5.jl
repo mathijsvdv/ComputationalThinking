@@ -26,6 +26,7 @@ begin
 	using Plots
 	gr()
 	using PlutoUI
+	using Random
 end
 
 # ╔═╡ 19fe1ee8-0970-11eb-2a0d-7d25e7d773c6
@@ -378,7 +379,15 @@ Let's define a type `Agent`. `Agent` contains a `position` (of type `Coordinate`
 @enum InfectionStatus S I R
 
 # ╔═╡ cf2f3b98-09a0-11eb-032a-49cc8c15e89c
-# define agent struct here:
+begin
+	mutable struct Agent{TP<:Coordinate}
+		position::TP
+		status::InfectionStatus
+	end
+	
+	Agent(position::Coordinate) = Agent(position, S)
+	Agent() = Agent(Coordinate())
+end
 
 # ╔═╡ 814e888a-0954-11eb-02e5-0964c7410d30
 md"""
@@ -388,14 +397,40 @@ md"""
 It returns a `Vector` of `N` randomly generated `Agent`s. Their coordinates are randomly sampled in the ``[-L,L] \times [-L,L]`` box, and the agents are all susceptible, except one, chosen at random, which is infectious.
 """
 
+# ╔═╡ 985da280-7449-11eb-16ba-7d60cc59f7dc
+struct Box{T<:Number}
+	L::T
+end
+
+# ╔═╡ ee7ac530-7449-11eb-1105-e9de20c924c5
+"""Generate random coordinate in the box"""
+function Random.rand(rng::AbstractRNG, box::Random.SamplerTrivial{Box{T}} where T)
+	L = box[].L
+	x, y = rand(rng, -L:L, 2)
+	return Coordinate(x, y)
+end
+
+# ╔═╡ 0b3a6e40-744b-11eb-17a6-efe4381f6168
+rand(Box(20))
+
 # ╔═╡ 0cfae7ba-0a69-11eb-3690-d973d70e47f4
-# function initialize(N::Number, L::Number)
+begin
+	function initialize(N::Number, box::Box)
+		agents = [Agent(rand(box), S) for i ∈ 1:N]
+		rand(agents).status = I
+		return agents
+	end
 	
-# 	return missing
-# end
+	function initialize(N::Number, L::Number)
+		return initialize(N, Box(L))
+	end
+end
 
 # ╔═╡ 1d0f8eb4-0a46-11eb-38e7-63ecbadbfa20
-# initialize(3, 10)
+initialize(3, 10)
+
+# ╔═╡ 4bda8cd0-744d-11eb-0198-6bc9e0d233f2
+@code_warntype initialize(3, Box(10))
 
 # ╔═╡ e0b0880c-0a47-11eb-0db2-f760bbbf9c11
 # Color based on infection status
@@ -408,10 +443,13 @@ else
 end
 
 # ╔═╡ b5a88504-0a47-11eb-0eda-f125d419e909
-# position(a::Agent) = a.position # uncomment this line
+position(a::Agent) = a.position # uncomment this line
+
+# ╔═╡ b55bd702-7451-11eb-0bba-91c2bd80781b
+get_status(a::Agent) = a.status
 
 # ╔═╡ 87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
-# color(a::Agent) = color(a.status) # uncomment this line
+color(a::Agent) = color(a.status) # uncomment this line
 
 # ╔═╡ 49fa8092-0a43-11eb-0ba9-65785ac6a42f
 md"""
@@ -421,17 +459,53 @@ md"""
 You can use the keyword argument `c=color.(agents)` inside your call to the plotting function make the point colors correspond to the infection statuses. Don't forget to use `ratio=1`.
 """
 
-# ╔═╡ 1ccc961e-0a69-11eb-392b-915be07ef38d
-# function visualize(agents::Vector, L)
+# ╔═╡ d9df1900-744e-11eb-3ef8-3118046387b4
+begin
+	xlims(box::Box) = (-box.L, box.L)
+	ylims(box::Box) = (-box.L, box.L)
+end
+
+# ╔═╡ ec79eb20-7454-11eb-2652-637794295267
+begin
+	rectangle(xb, yb, xt, yt) = [
+		(xb, yb)
+		(xt, yb)
+		(xt, yt)
+		(xb, yt)
+		(xb, yb)
+		(NaN, NaN)
+	]
+	rectangle(box::Box) = rectangle(-box.L, -box.L, box.L, box.L)
+end
+
+
+# ╔═╡ fed9ea10-744d-11eb-122d-712b18137086
+begin
+	function visualize!(p::Plots.Plot, agents::Vector, box::Box)
+		plot!(rectangle(box), alpha=0.1, linecolor="black", label=nothing)
+		scatter!(p, make_tuple.(position.(agents)),
+			group = get_status.(agents),
+			color_palete=["blue", "red", "green"],
+			xlims=xlims(box) .+ (-1, 1), 
+			ylims=ylims(box) .+ (-1, 1))
+	end
 	
-# 	return missing
-# end
+	visualize!(p, agents, L) = visualize!(p, agents, Box(L))
+end
+
+# ╔═╡ 1ccc961e-0a69-11eb-392b-915be07ef38d
+function visualize(agents::Vector, box)
+	p = plot(ratio=1)
+	visualize!(p, agents, box)
+
+	return p
+end
 
 # ╔═╡ 1f96c80a-0a46-11eb-0690-f51c60e57c3f
 let
 	N = 20
 	L = 10
-#	visualize(initialize(N, L), L) # uncomment this line!
+	visualize(initialize(N, L), L) # uncomment this line!
 end
 
 # ╔═╡ f953e06e-099f-11eb-3549-73f59fed8132
@@ -1013,13 +1087,21 @@ bigbreak
 # ╠═35537320-0a47-11eb-12b3-931310f18dec
 # ╠═cf2f3b98-09a0-11eb-032a-49cc8c15e89c
 # ╟─814e888a-0954-11eb-02e5-0964c7410d30
+# ╠═985da280-7449-11eb-16ba-7d60cc59f7dc
+# ╠═ee7ac530-7449-11eb-1105-e9de20c924c5
+# ╠═0b3a6e40-744b-11eb-17a6-efe4381f6168
 # ╠═0cfae7ba-0a69-11eb-3690-d973d70e47f4
 # ╠═1d0f8eb4-0a46-11eb-38e7-63ecbadbfa20
+# ╠═4bda8cd0-744d-11eb-0198-6bc9e0d233f2
 # ╟─4fac0f36-0a59-11eb-03d0-632dc9db063a
 # ╠═e0b0880c-0a47-11eb-0db2-f760bbbf9c11
 # ╠═b5a88504-0a47-11eb-0eda-f125d419e909
+# ╠═b55bd702-7451-11eb-0bba-91c2bd80781b
 # ╠═87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
 # ╟─49fa8092-0a43-11eb-0ba9-65785ac6a42f
+# ╠═d9df1900-744e-11eb-3ef8-3118046387b4
+# ╠═fed9ea10-744d-11eb-122d-712b18137086
+# ╠═ec79eb20-7454-11eb-2652-637794295267
 # ╠═1ccc961e-0a69-11eb-392b-915be07ef38d
 # ╠═1f96c80a-0a46-11eb-0690-f51c60e57c3f
 # ╟─f953e06e-099f-11eb-3549-73f59fed8132
