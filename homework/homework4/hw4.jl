@@ -600,13 +600,13 @@ end
 # ╔═╡ 523d6f90-7220-11eb-35c3-6f167ccd872c
 begin
 	function try_infect!(agent::Agent, source::Agent, infection::AbstractInfection)
-		if rand() < get_p_infection(infection)
+		if bernoulli(get_p_infection(infection))
 			infect!(agent, source)
 		end
 	end
 	
 	function try_recover!(agent::Agent, infection::AbstractInfection)
-		if rand() < get_p_recovery(infection)
+		if bernoulli(get_p_recovery(infection))
 			recover!(agent, infection)
 		end
 	end
