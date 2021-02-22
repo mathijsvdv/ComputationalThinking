@@ -375,19 +375,79 @@ Let's define a type `Agent`. `Agent` contains a `position` (of type `Coordinate`
 (For simplicity we will not use a `num_infected` field, but feel free to do so!)
 """
 
+# ╔═╡ 0d44e9c0-7547-11eb-3317-a1e0280af9e9
+md"**Mathijs note:** So what I was going to say was the following:
+
+I've found enums cumbersome to work with in this case. In this example we want to do different things depending on the infection status (e.g. only infect if agent is susceptible and source is infected). We know all the statuses beforehand, so what I would suggest is to use singleton types instead. This way we can just use dispatch.
+
+Turns out that that approach doesn't work well if used in a mutable struct. If you define code like the following:
+"
+
+# ╔═╡ ceaed8c0-7554-11eb-3367-8dd46abfdaae
+begin
+	abstract type AbstractInfectionStatus end
+	struct Susceptible <: AbstractInfectionStatus end
+	struct Infected <: AbstractInfectionStatus end
+	struct Recovered <: AbstractInfectionStatus end
+end
+
+# ╔═╡ ed1b15d2-7554-11eb-2ea6-dde55b2fe194
+md"With the above setup, a susceptible agent is of type `AgentDispatch{S}` and an infected one of type `AgentDispatch{I}`. But then we cannot change the status because we cannot change these types in-place! I.e. the following will throw an error:"
+
 # ╔═╡ 35537320-0a47-11eb-12b3-931310f18dec
-@enum InfectionStatus S I R
+begin
+	@enum InfectionStatus S I R
+end
 
 # ╔═╡ cf2f3b98-09a0-11eb-032a-49cc8c15e89c
 begin
-	mutable struct Agent{TP<:Coordinate}
-		position::TP
+	mutable struct Agent
+		position::Coordinate
 		status::InfectionStatus
+		num_infected::Int
 	end
 	
+	Agent(position::Coordinate, status::InfectionStatus) = Agent(position, status, 0)
 	Agent(position::Coordinate) = Agent(position, S)
 	Agent() = Agent(Coordinate())
 end
+
+# ╔═╡ d879b68e-7554-11eb-3fea-298297ac8001
+begin
+	mutable struct AgentDispatch{TI<:AbstractInfectionStatus}
+		position::Coordinate
+		status::TI
+		num_infected::Int
+	end
+	
+	AgentDispatch(position::Coordinate, status::AbstractInfectionStatus) = Agent(position, status, 0)
+	AgentDispatch(position::Coordinate) = Agent(position, Susceptible())
+	AgentDispatch() = Agent(Coordinate())
+end
+
+# ╔═╡ 658be8f0-7555-11eb-0b06-9982d08c5c7f
+let
+	a = AgentDispatch(Coordinate(), Susceptible())
+	a.status = Infected()
+end
+
+# ╔═╡ 2f7ef9e0-7556-11eb-2770-4bd731ae08c5
+begin
+	is_susceptible(a::Agent) = a.status == S
+	is_infected(a::Agent) = a.status == I
+	is_recovered(a::Agent) = a.status == R
+end
+
+# ╔═╡ dff49f02-7556-11eb-051f-2195a55c3266
+begin
+	get_num_infected(a::Agent) = a.num_infected
+	function set_num_infected!(a::Agent, num_infected)
+		a.num_infected = num_infected
+	end
+end
+
+# ╔═╡ f7f4b99e-7556-11eb-0a16-11743a3a209f
+
 
 # ╔═╡ 814e888a-0954-11eb-02e5-0964c7410d30
 md"""
@@ -447,6 +507,11 @@ position(a::Agent) = a.position # uncomment this line
 
 # ╔═╡ b55bd702-7451-11eb-0bba-91c2bd80781b
 get_status(a::Agent) = a.status
+
+# ╔═╡ 92ec7240-7543-11eb-0d5a-59cad2763e85
+function set_status!(agent::Agent, new_status::InfectionStatus)
+	agent.status = new_status
+end
 
 # ╔═╡ 87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
 color(a::Agent) = color(a.status) # uncomment this line
@@ -527,6 +592,12 @@ struct CollisionInfectionRecovery <: AbstractInfection
 	p_recovery::Float64
 end
 
+# ╔═╡ b1779e70-7542-11eb-2422-5558bd99dbfd
+begin
+	get_p_infection(infection) = infection.p_infection
+	get_p_recovery(infection) = infection.p_recovery
+end
+
 # ╔═╡ 80f39140-0aef-11eb-21f7-b788c5eab5c9
 md"""
 
@@ -536,10 +607,74 @@ Write a function `interact!` that takes two `Agent`s and a `CollisionInfectionRe
 - if the first agent is infectious, it recovers with some probability
 """
 
+# ╔═╡ 9aedf730-7542-11eb-1834-7505b82c682f
+function bernoulli(p::Number)
+	
+	return rand() < p
+end
+
+# ╔═╡ 4cf889a0-7542-11eb-3616-4d834e52ee4c
+function infect!(agent::Agent, source::Agent)
+	set_status!(agent, I)
+	set_num_infected!(source, get_num_infected(source) + 1)
+end
+
+# ╔═╡ 55aa7d60-7542-11eb-075b-43faad33820b
+begin
+	function recover!(agent::Agent)
+		set_status!(agent, R)
+	end
+
+	function recover!(agent::Agent, infection::AbstractInfection)
+		recover!(agent::Agent)
+	end
+end
+
+# ╔═╡ 5abba3b0-7542-11eb-3a7d-4d01597f636b
+begin
+	function try_infect!(agent::Agent, source::Agent, infection::AbstractInfection)
+		if bernoulli(get_p_infection(infection))
+			infect!(agent, source)
+		end
+	end
+	
+	function try_recover!(agent::Agent, infection::AbstractInfection)
+		if bernoulli(get_p_recovery(infection))
+			recover!(agent, infection)
+		end
+	end
+end
+
+# ╔═╡ 4291f620-7544-11eb-3eee-89fbf92fc6bf
+
+
 # ╔═╡ d1bcd5c4-0a4b-11eb-1218-7531e367a7ff
-#function interact!(agent::Agent, source::Agent, infection::CollisionInfectionRecovery)
-	#missing
-#end
+begin
+	function interact!(agent::Agent, source::Agent, infection::AbstractInfection)
+		if is_susceptible(agent) && is_infected(source)
+			try_infect!(agent, source, infection)		
+		elseif is_infected(agent)
+			try_recover!(agent, infection)
+		end
+	end
+	
+	function interact!(agent::Agent, source::Agent, infection::CollisionInfectionRecovery)
+		if is_susceptible(agent) && is_infected(source) && position(agent) == position(source)
+			try_infect!(agent, source, infection)
+		elseif is_infected(agent)
+			try_recover!(agent, infection)
+		end
+	end 
+end
+
+# ╔═╡ d0f6dcb2-7543-11eb-175b-efa4ab8e858a
+let
+	agent = Agent(Coordinate(), S)
+	source = Agent(Coordinate(), I)
+	infection = CollisionInfectionRecovery(0.5, 0.002)
+	interact!(agent, source, infection)
+	agent
+end
 
 # ╔═╡ 34778744-0a5f-11eb-22b6-abe8b8fc34fd
 md"""
@@ -558,10 +693,10 @@ Your turn!
 """
 
 # ╔═╡ 24fe0f1a-0a69-11eb-29fe-5fb6cbf281b8
-# function step!(agents::Vector, L::Number, infection::AbstractInfection)
+function step!(agents::Vector, L::Number, infection::AbstractInfection)
 	
-# 	return missing
-# end
+	return missing
+end
 
 # ╔═╡ 1fc3271e-0a45-11eb-0e8d-0fd355f5846b
 md"""
@@ -1084,8 +1219,16 @@ bigbreak
 # ╠═873c8e30-743a-11eb-3250-f386cd311c0b
 # ╟─ed2d616c-0a66-11eb-1839-edf8d15cf82a
 # ╟─3ed06c80-0954-11eb-3aee-69e4ccdc4f9d
+# ╟─0d44e9c0-7547-11eb-3317-a1e0280af9e9
+# ╠═ceaed8c0-7554-11eb-3367-8dd46abfdaae
+# ╠═d879b68e-7554-11eb-3fea-298297ac8001
+# ╠═ed1b15d2-7554-11eb-2ea6-dde55b2fe194
+# ╠═658be8f0-7555-11eb-0b06-9982d08c5c7f
 # ╠═35537320-0a47-11eb-12b3-931310f18dec
 # ╠═cf2f3b98-09a0-11eb-032a-49cc8c15e89c
+# ╠═2f7ef9e0-7556-11eb-2770-4bd731ae08c5
+# ╠═dff49f02-7556-11eb-051f-2195a55c3266
+# ╠═f7f4b99e-7556-11eb-0a16-11743a3a209f
 # ╟─814e888a-0954-11eb-02e5-0964c7410d30
 # ╠═985da280-7449-11eb-16ba-7d60cc59f7dc
 # ╠═ee7ac530-7449-11eb-1105-e9de20c924c5
@@ -1097,6 +1240,7 @@ bigbreak
 # ╠═e0b0880c-0a47-11eb-0db2-f760bbbf9c11
 # ╠═b5a88504-0a47-11eb-0eda-f125d419e909
 # ╠═b55bd702-7451-11eb-0bba-91c2bd80781b
+# ╠═92ec7240-7543-11eb-0d5a-59cad2763e85
 # ╠═87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
 # ╟─49fa8092-0a43-11eb-0ba9-65785ac6a42f
 # ╠═d9df1900-744e-11eb-3ef8-3118046387b4
@@ -1107,8 +1251,15 @@ bigbreak
 # ╟─f953e06e-099f-11eb-3549-73f59fed8132
 # ╠═e6dd8258-0a4b-11eb-24cb-fd5b3554381b
 # ╠═de88b530-0a4b-11eb-05f7-85171594a8e8
+# ╠═b1779e70-7542-11eb-2422-5558bd99dbfd
 # ╟─80f39140-0aef-11eb-21f7-b788c5eab5c9
+# ╠═9aedf730-7542-11eb-1834-7505b82c682f
+# ╠═4cf889a0-7542-11eb-3616-4d834e52ee4c
+# ╠═55aa7d60-7542-11eb-075b-43faad33820b
+# ╠═5abba3b0-7542-11eb-3a7d-4d01597f636b
+# ╠═4291f620-7544-11eb-3eee-89fbf92fc6bf
 # ╠═d1bcd5c4-0a4b-11eb-1218-7531e367a7ff
+# ╠═d0f6dcb2-7543-11eb-175b-efa4ab8e858a
 # ╟─34778744-0a5f-11eb-22b6-abe8b8fc34fd
 # ╠═24fe0f1a-0a69-11eb-29fe-5fb6cbf281b8
 # ╟─1fc3271e-0a45-11eb-0e8d-0fd355f5846b
