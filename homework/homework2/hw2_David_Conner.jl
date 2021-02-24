@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.21
+# v0.12.18
 
 using Markdown
 using InteractiveUtils
@@ -212,8 +212,8 @@ function remove_in_each_row_views(img, column_numbers)
 	m, n = size(img)
 
 	@views for (i, j) in enumerate(column_numbers)
-		img[i, 1:j-1] = img[i, 1:j-1]
-		img[i, j:n-1] = img[i, j+1:end]
+		img[i, 1:j-1] .= img[i, 1:j-1]
+		img[i, j:n-1] .= img[i, j+1:end]
 	end
 	@view img[:, 1:n-1]
 end
@@ -375,8 +375,31 @@ function greedy_seam(energies, starting_pixel::Int)
 		init=[starting_pixel])
 end
 
-# ╔═╡ 9f584dc2-6faa-11eb-140b-ef0689d049ac
+# ╔═╡ f7e9d550-76e4-11eb-294c-4bc004edad08
+function greedy_seam_forloop(energies, starting_pixel::Int)
+	h, w = size(energies)
+	seam = zeros(Int, h)
+	seam[1] = starting_pixel
+	
+	for r in 1:h-1
+		prev_seam = seam[r]
+		seam[r+1] = greedy_seam(energies, r, prev_seam)
+	end
+	
+	return seam
+end
 
+# ╔═╡ e9457870-76e3-11eb-140d-f55ccd31a111
+function greedy_seam_accum(energies, starting_pixel::Int)
+	h,w = size(energies)
+	seam = zeros(Int, h)
+	seam[1] = starting_pixel
+	
+	accumulate!((a, b) -> greedy_seam(energies, b, a), (@view seam[2:end]), 1:h-1; 
+		init=starting_pixel)
+	
+	return seam
+end
 
 # ╔═╡ 5430d772-f397-11ea-2ed8-03ee06d02a22
 md"Before we apply your function to our test image, let's try it out on a small matrix of energies (displayed here in grayscale), just like in the lecture snippet above (clicking on the video will take you to the right part of the video). Light pixels have high energy, dark pixels signify low energy."
@@ -390,6 +413,15 @@ md"Before we apply your function to our test image, let's try it out on a small 
 
 # ╔═╡ 7ddee6fc-f394-11ea-31fc-5bd665a65bef
 greedy_test = Gray.(rand(Float64, (8,10)));
+
+# ╔═╡ 9f584dc2-6faa-11eb-140b-ef0689d049ac
+@benchmark greedy_seam(greedy_test, 3)
+
+# ╔═╡ cb7c15a0-76e4-11eb-3e3e-31dd1e215695
+@benchmark greedy_seam_accum(greedy_test, 3)
+
+# ╔═╡ 76e30570-76e5-11eb-38cc-5db2fc8dbe70
+@benchmark greedy_seam_forloop(greedy_test, 3)
 
 # ╔═╡ 6f52c1a2-f395-11ea-0c8a-138a77f03803
 md"Starting pixel: $(@bind greedy_starting_pixel Slider(1:size(greedy_test, 2); show_value=true))"
@@ -1285,7 +1317,7 @@ bigbreak
 # ╠═88f1d85a-686b-11eb-2f21-5505ba861c43
 # ╟─d4ea4222-f388-11ea-3c8d-db0d651f5282
 # ╟─40d6f562-f329-11ea-2ee4-d7806a16ede3
-# ╟─4f0975d8-f329-11ea-3d10-59a503f8d6b2
+# ╠═4f0975d8-f329-11ea-3d10-59a503f8d6b2
 # ╟─dc63d32a-f387-11ea-37e2-6f3666a72e03
 # ╟─7eaa57d2-f368-11ea-1a70-c7c7e54bd0b1
 # ╠═fd819dac-f368-11ea-33bb-17148387546a
@@ -1307,10 +1339,14 @@ bigbreak
 # ╟─8ba9f5fc-f31b-11ea-00fe-79ecece09c25
 # ╟─f5a74dfc-f388-11ea-2577-b543d31576c6
 # ╟─c3543ea4-f393-11ea-39c8-37747f113b96
-# ╠═2f9cbea8-f3a1-11ea-20c6-01fd1464a592
+# ╟─2f9cbea8-f3a1-11ea-20c6-01fd1464a592
 # ╠═3f9cbea8-f3a1-11ea-20c6-01fd1464a592
 # ╠═abf20aa0-f31b-11ea-2548-9bea4fab4c37
+# ╠═f7e9d550-76e4-11eb-294c-4bc004edad08
+# ╠═e9457870-76e3-11eb-140d-f55ccd31a111
 # ╠═9f584dc2-6faa-11eb-140b-ef0689d049ac
+# ╠═cb7c15a0-76e4-11eb-3e3e-31dd1e215695
+# ╠═76e30570-76e5-11eb-38cc-5db2fc8dbe70
 # ╟─5430d772-f397-11ea-2ed8-03ee06d02a22
 # ╟─f580527e-f397-11ea-055f-bb9ea8f12015
 # ╟─6f52c1a2-f395-11ea-0c8a-138a77f03803
