@@ -550,9 +550,13 @@ begin
 		plot!(rectangle(box), alpha=0.1, linecolor="black", label=nothing)
 		scatter!(p, make_tuple.(position.(agents)),
 			group = get_status.(agents),
-			color_palete=["blue", "red", "green"],
+			# color_palette=[:blue, :red, :green],
+			# markercolor=:match,
+			c=color.(agents),
 			xlims=xlims(box) .+ (-1, 1), 
-			ylims=ylims(box) .+ (-1, 1))
+			ylims=ylims(box) .+ (-1, 1),
+			legend=false
+		)
 	end
 	
 	visualize!(p, agents, L) = visualize!(p, agents, Box(L))
@@ -570,7 +574,8 @@ end
 let
 	N = 20
 	L = 10
-	visualize(initialize(N, L), L) # uncomment this line!
+	# visualize(initialize(N, L), L) # uncomment this line!
+	get_status.(initialize(N, L))
 end
 
 # ╔═╡ f953e06e-099f-11eb-3549-73f59fed8132
@@ -692,11 +697,30 @@ Your turn!
 - return the array `agents` again.
 """
 
-# ╔═╡ 24fe0f1a-0a69-11eb-29fe-5fb6cbf281b8
-function step!(agents::Vector, L::Number, infection::AbstractInfection)
+# ╔═╡ f3f3b0d2-78e5-11eb-392a-2fde7fb451eb
+begin
+	function step!(source::Agent, move::Coordinate, L::Number)
+		source.position = collide_boundary(source.position + move, L)
+	end
 	
-	return missing
+	function step!(source, L::Number)
+		step!(source, rand(possible_moves), L)
+	end
+	
+	function step!(agents::Vector, L::Number, infection::AbstractInfection)
+		i_source = rand(1:length(agents))
+		source = agents[i_source]
+		step!(source, L)
+		
+		other_agents = agents[1:end .!= i_source]
+		for other_agent in other_agents
+			interact!(other_agent, source, infection)
+		end
+		
+		return agents
+	end
 end
+
 
 # ╔═╡ 1fc3271e-0a45-11eb-0e8d-0fd355f5846b
 md"""
@@ -715,22 +739,35 @@ plot(plot_before, plot_after)
 ```
 """
 
+# ╔═╡ e372c460-78e7-11eb-1c68-53cf521ff221
+function sweep!(agents::Vector, L::Number, infection::AbstractInfection)
+	for i in 1:length(agents)
+		step!(agents, L, infection)
+	end
+end
+
 # ╔═╡ 18552c36-0a4d-11eb-19a0-d7d26897af36
 pandemic = CollisionInfectionRecovery(0.5, 0.00001)
 
 # ╔═╡ 4e7fd58a-0a62-11eb-1596-c717e0845bd5
-@bind k_sweeps Slider(1:10000, default=1000)
+@bind k_sweeps Slider(1:10000, default=1000, show_value=true)
 
 # ╔═╡ 778c2490-0a62-11eb-2a6c-e7fab01c6822
-# let
-# 	N = 50
-# 	L = 40
+let
+	N = 50
+	L = 40
+	agents = initialize(N, L)
 	
-# 	plot_before = plot(1:3) # replace with your code
-# 	plot_after = plot(1:3)
+	plot_before = visualize(agents, L)
 	
-# 	plot(plot_before, plot_after)
-# end
+	for i in 1:k_sweeps
+		sweep!(agents, L, pandemic)
+	end
+	
+	plot_after = visualize(agents, L)
+	
+	plot(plot_before, plot_after)
+end
 
 # ╔═╡ e964c7f0-0a61-11eb-1782-0b728fab1db0
 md"""
@@ -745,13 +782,31 @@ Every time that you move the slider, a completely new simulation is created an r
 k_sweep_max = 10000
 
 # ╔═╡ ef27de84-0a63-11eb-177f-2197439374c5
-let
-	N = 50
-	L = 30
+# sim33 = let
+# 	N = 50
+# 	L = 30
+# 	agents = initialize(N, L)
 	
-	# agents = initialize(N, L)
-	# compute k_sweep_max number of sweeps and plot the SIR
-end
+# 	sim33 = Vector{Vector{Agent}}(undef, k_sweep_max + 1)
+# 	sim33[1] = agents
+	
+# 	for k_s in 1:k_sweep_max
+# 		agents = copy(agents)
+# 		sweep!(agents, L, pandemic)
+# 		sim33[k_s+1] = agents
+# 	end
+	
+# 	sim33
+# end
+
+# ╔═╡ 3686e8a0-78ef-11eb-27bf-df870be6fc67
+# @bind k_sweeps33 Slider(0:10000, default=1000, show_value=true)
+
+# ╔═╡ 2a113620-78ef-11eb-24dd-87bf3f74fe7d
+# visualize(sim33[k_sweeps33+1], 30)
+
+# ╔═╡ 6aa88270-78ee-11eb-28b5-edaa698dc6db
+# TODO plot SIR curves
 
 # ╔═╡ 201a3810-0a45-11eb-0ac9-a90419d0b723
 md"""
@@ -1222,7 +1277,7 @@ bigbreak
 # ╟─0d44e9c0-7547-11eb-3317-a1e0280af9e9
 # ╠═ceaed8c0-7554-11eb-3367-8dd46abfdaae
 # ╠═d879b68e-7554-11eb-3fea-298297ac8001
-# ╠═ed1b15d2-7554-11eb-2ea6-dde55b2fe194
+# ╟─ed1b15d2-7554-11eb-2ea6-dde55b2fe194
 # ╠═658be8f0-7555-11eb-0b06-9982d08c5c7f
 # ╠═35537320-0a47-11eb-12b3-931310f18dec
 # ╠═cf2f3b98-09a0-11eb-032a-49cc8c15e89c
@@ -1261,14 +1316,18 @@ bigbreak
 # ╠═d1bcd5c4-0a4b-11eb-1218-7531e367a7ff
 # ╠═d0f6dcb2-7543-11eb-175b-efa4ab8e858a
 # ╟─34778744-0a5f-11eb-22b6-abe8b8fc34fd
-# ╠═24fe0f1a-0a69-11eb-29fe-5fb6cbf281b8
+# ╠═f3f3b0d2-78e5-11eb-392a-2fde7fb451eb
 # ╟─1fc3271e-0a45-11eb-0e8d-0fd355f5846b
+# ╠═e372c460-78e7-11eb-1c68-53cf521ff221
 # ╟─18552c36-0a4d-11eb-19a0-d7d26897af36
 # ╠═4e7fd58a-0a62-11eb-1596-c717e0845bd5
 # ╠═778c2490-0a62-11eb-2a6c-e7fab01c6822
 # ╟─e964c7f0-0a61-11eb-1782-0b728fab1db0
 # ╠═4d83dbd0-0a63-11eb-0bdc-757f0e721221
 # ╠═ef27de84-0a63-11eb-177f-2197439374c5
+# ╠═3686e8a0-78ef-11eb-27bf-df870be6fc67
+# ╠═2a113620-78ef-11eb-24dd-87bf3f74fe7d
+# ╠═6aa88270-78ee-11eb-28b5-edaa698dc6db
 # ╟─8475baf0-0a63-11eb-1207-23f789d00802
 # ╟─201a3810-0a45-11eb-0ac9-a90419d0b723
 # ╠═e5040c9e-0a65-11eb-0f45-270ab8161871
