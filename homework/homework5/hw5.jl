@@ -530,6 +530,9 @@ begin
 	ylims(box::Box) = (-box.L, box.L)
 end
 
+# ╔═╡ 3f4f7b30-78fb-11eb-24f9-911ebdcd5e95
+floor(Int, 0.5)
+
 # ╔═╡ ec79eb20-7454-11eb-2652-637794295267
 begin
 	rectangle(xb, yb, xt, yt) = [
@@ -550,12 +553,13 @@ begin
 		plot!(rectangle(box), alpha=0.1, linecolor="black", label=nothing)
 		scatter!(p, make_tuple.(position.(agents)),
 			group = get_status.(agents),
+			c=[:blue :red :green],
 			# color_palette=[:blue, :red, :green],
 			# markercolor=:match,
-			c=color.(agents),
-			xlims=xlims(box) .+ (-1, 1), 
-			ylims=ylims(box) .+ (-1, 1),
-			legend=false
+			# c=color.(agents),
+			# xlims=xlims(box) .+ (-1, 1), 
+			# ylims=ylims(box) .+ (-1, 1),
+			# legend=false
 		)
 	end
 	
@@ -1299,6 +1303,7 @@ bigbreak
 # ╠═87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
 # ╟─49fa8092-0a43-11eb-0ba9-65785ac6a42f
 # ╠═d9df1900-744e-11eb-3ef8-3118046387b4
+# ╠═3f4f7b30-78fb-11eb-24f9-911ebdcd5e95
 # ╠═fed9ea10-744d-11eb-122d-712b18137086
 # ╠═ec79eb20-7454-11eb-2652-637794295267
 # ╠═1ccc961e-0a69-11eb-392b-915be07ef38d
