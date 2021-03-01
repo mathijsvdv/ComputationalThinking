@@ -21,12 +21,13 @@ end
 
 # ╔═╡ 2dcb18d0-0970-11eb-048a-c1734c6db842
 begin
-	Pkg.add(["PlutoUI", "Plots"])
+	Pkg.add(["PlutoUI", "Plots", "StatsBase"])
 
 	using Plots
 	gr()
 	using PlutoUI
 	using Random
+	using StatsBase
 end
 
 # ╔═╡ 19fe1ee8-0970-11eb-2a0d-7d25e7d773c6
@@ -446,9 +447,6 @@ begin
 	end
 end
 
-# ╔═╡ f7f4b99e-7556-11eb-0a16-11743a3a209f
-
-
 # ╔═╡ 814e888a-0954-11eb-02e5-0964c7410d30
 md"""
 #### Exercise 2.1
@@ -516,6 +514,14 @@ end
 # ╔═╡ 87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
 color(a::Agent) = color(a.status) # uncomment this line
 
+# ╔═╡ 4f0645a0-7ac1-11eb-2c62-19ac7cc43791
+
+
+# ╔═╡ e7c5c6de-7ac0-11eb-34fc-a50dcb8ff978
+count_S(agents::AbstractVector{Agent}) = count(get_status.(agents) .== I)
+count_I(agents::AbstractVector{Agent}) = count(get_status.(agents) .== I)
+count_R(agents::AbstractVector{Agent}) = count(get_status.(agents) .== I)
+
 # ╔═╡ 49fa8092-0a43-11eb-0ba9-65785ac6a42f
 md"""
 #### Exercise 2.2
@@ -553,13 +559,13 @@ begin
 		plot!(rectangle(box), alpha=0.1, linecolor="black", label=nothing)
 		scatter!(p, make_tuple.(position.(agents)),
 			group = get_status.(agents),
-			c=[:blue :red :green],
+			# c=[:blue :red :green],
 			# color_palette=[:blue, :red, :green],
 			# markercolor=:match,
-			# c=color.(agents),
+			c=color.(agents),
 			# xlims=xlims(box) .+ (-1, 1), 
 			# ylims=ylims(box) .+ (-1, 1),
-			# legend=false
+			legend=false
 		)
 	end
 	
@@ -653,9 +659,6 @@ begin
 		end
 	end
 end
-
-# ╔═╡ 4291f620-7544-11eb-3eee-89fbf92fc6bf
-
 
 # ╔═╡ d1bcd5c4-0a4b-11eb-1218-7531e367a7ff
 begin
@@ -809,8 +812,80 @@ k_sweep_max = 10000
 # ╔═╡ 2a113620-78ef-11eb-24dd-87bf3f74fe7d
 # visualize(sim33[k_sweeps33+1], 30)
 
+# ╔═╡ 9f156740-7ac8-11eb-1b19-81425f434f27
+abstract type AbstractSimulation end
+
+# ╔═╡ 1356ecc0-7ac2-11eb-0d7b-1d303a8191b1
+struct Simulation{T<:AbstractVector} <: AbstractSimulation
+	S_counts::Vector{Int64}
+	I_counts::Vector{Int64}
+	R_counts::Vector{Int64}
+	index::T  # Indicates what 'key' each count belongs to. E.g. `index=0:T` means the counts are observed at time points 0:T
+	
+	function Simulation(S_counts, I_counts, R_counts, index::T) where T
+		length(S_counts) == length(I_counts) == length(R_counts) == length(index) || error("The lengths of the  S, I, R status counts (`S_counts`, `I_counts` and `R_counts`), as well as the `index` must be equal")
+		
+		return new{T}(S_counts, I_counts, R_counts, index)
+	end
+end
+
+# ╔═╡ bbcd1680-7ac8-11eb-0bbb-f5bcd8d406f7
+begin
+	get_S_counts(sim::Simulation) = sim.S_counts
+	get_I_counts(sim::Simulation) = sim.I_counts
+	get_R_counts(sim::Simulation) = sim.R_counts
+	Base.length(sim::Simulation) = length(sim.index)
+	Base.getindex(sim::Simulation, inds) = Simulation(
+		sim.S_counts[inds], sim.I_counts[inds], sim.R_counts[inds], sim.index[inds]
+	)
+end
+
+# ╔═╡ 86f3f0b0-7ac2-11eb-2727-87853e0f38d0
+begin
+	function simulate_sir(N::Int64, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection
+		)
+
+		agents = initialize(N, L)
+		return simulate_sir(agents, L, k_sweeps, infection)
+	end
+
+	function simulate_sir(agents::AbstractVector{Agent}, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection
+		)
+		
+		S_counts = Vector{Int64}(undef, k_sweeps + 1)
+		I_counts = Vector{Int64}(undef, k_sweeps + 1)
+		R_counts = Vector{Int64}(undef, k_sweeps + 1)
+		
+		counts = countmap(get_status.(agents))
+		S_counts[1] = get(counts, S, 0)
+		I_counts[1] = get(counts, I, 0)
+		R_counts[1] = get(counts, R, 0)
+
+		for i in 1:k_sweeps
+			sweep!(agents, L, pandemic)
+
+			counts = countmap(get_status.(agents))
+			S_counts[i+1] = get(counts, S, 0)
+			I_counts[i+1] = get(counts, I, 0)
+			R_counts[i+1] = get(counts, R, 0)
+		end
+
+		return Simulation(S_counts, I_counts, R_counts, 0:k_sweeps)
+	end
+end
+
+# ╔═╡ ecd1c042-7ac4-11eb-2446-87fe06e6c67f
+let
+	N = 50
+	L = 30
+	simulation = simulate_sir(N, L, k_sweep_max, pandemic)
+	plot(simulation)
+end
+
 # ╔═╡ 6aa88270-78ee-11eb-28b5-edaa698dc6db
-# TODO plot SIR curves
+countmap([1, 1, 3, 4, 3])
 
 # ╔═╡ 201a3810-0a45-11eb-0ac9-a90419d0b723
 md"""
@@ -824,13 +899,95 @@ Let's make our plot come alive! There are two options to make our visualization 
 This an optional exercise, and our solution to 2️⃣ is given below.
 """
 
+# ╔═╡ 083ea330-7ac9-11eb-2836-8964e6056026
+"""Stores all intermediate states rather than just the `S_counts`, `I_counts` and `R_counts`"""
+struct FullSimulation{T<:AbstractVector} <: AbstractSimulation
+	states::Vector{Vector{Agent}}
+	index::T
+end
+
+# ╔═╡ cb3aaf70-7acc-11eb-1503-2d30395fec65
+md"Not the most efficient implementation here: every time we want the count of one status we have to go through all of them. Better would be to cache the counts of all statuses at once. But for now this works."
+
+# ╔═╡ 736b3e50-7acb-11eb-041a-01593f058052
+begin
+	get_S_counts(sim::FullSimulation) = [count(get_status.(agents) .== S) for agents in sim.states]
+	get_I_counts(sim::FullSimulation) = [count(get_status.(agents) .== I) for agents in sim.states]
+	get_R_counts(sim::FullSimulation) = [count(get_status.(agents) .== R) for agents in sim.states]
+	Base.length(sim::FullSimulation) = length(sim.index)
+	Base.getindex(sim::FullSimulation, inds) = FullSimulation(
+		sim.states[inds], sim.index[inds]
+	)
+end
+
+# ╔═╡ b7dd9100-7ac1-11eb-342b-0df45dda99da
+begin
+	function Plots.plot(sim::AbstractSimulation, args...; kw...)
+		sir = [get_S_counts(sim), get_I_counts(sim), get_R_counts(sim)]
+		
+		plot(sim.index, sir, args...; label=[S I R], kw...)
+	end
+
+	function Plots.plot!(plt::Plots.Plot, sim::AbstractSimulation, args...; kw...)
+		sir = [get_S_counts(sim), get_I_counts(sim), get_R_counts(sim)]
+		
+		plot!(plt, sim.index, sir, args...; label=[S I R], kw...)
+	end
+end
+
+# ╔═╡ eb1d072e-7acb-11eb-0b10-21946f29f662
+begin
+	function simulate_full_sir(N::Int64, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection
+		)
+
+		agents = initialize(N, L)
+		return simulate_full_sir(agents, L, k_sweeps, infection)
+	end
+
+	function simulate_full_sir(agents::AbstractVector{Agent}, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection
+		)
+		
+		states = Vector{Vector{Agent}}(undef, k_sweeps + 1)
+		states[1] = agents
+
+		for i in 1:k_sweeps
+			agents = deepcopy(agents)
+			sweep!(agents, L, pandemic)
+			states[i+1] = agents
+		end
+
+		return FullSimulation(states, 0:k_sweeps)
+	end
+end
+
 # ╔═╡ e5040c9e-0a65-11eb-0f45-270ab8161871
-# let
-# 	N = 50
-# 	L = 30
+simulation = let
+	N = 50
+	L = 30
+	simulation = simulate_full_sir(N, L, k_sweep_max, pandemic)
+end
+
+# ╔═╡ 8f54e7d0-7ace-11eb-3ace-69b23953d99f
+@bind t Slider(0:k_sweep_max, show_value=true)
+
+# ╔═╡ 5f3cef60-7acf-11eb-13fc-f73f4a813fb9
+let
+	p_vis = visualize(simulation.states[t+1], 30)
+	p_sir = plot(simulation[1:t+1])
 	
-# 	missing
-# end
+	plot(p_vis, p_sir)
+end
+
+# ╔═╡ ba95a3be-7acf-11eb-33a8-0b50577145d1
+# Takes about 3 min, uncomment to get a cool gif!
+# @gif for t ∈ 0:k_sweep_max
+#     p_vis = visualize(simulation.states[t+1], 30)
+# 	p_sir = plot(simulation[1:t+1])
+	
+# 	plot(p_vis, p_sir)
+# end every 50
 
 # ╔═╡ 2031246c-0a45-11eb-18d3-573f336044bf
 md"""
@@ -1287,7 +1444,6 @@ bigbreak
 # ╠═cf2f3b98-09a0-11eb-032a-49cc8c15e89c
 # ╠═2f7ef9e0-7556-11eb-2770-4bd731ae08c5
 # ╠═dff49f02-7556-11eb-051f-2195a55c3266
-# ╠═f7f4b99e-7556-11eb-0a16-11743a3a209f
 # ╟─814e888a-0954-11eb-02e5-0964c7410d30
 # ╠═985da280-7449-11eb-16ba-7d60cc59f7dc
 # ╠═ee7ac530-7449-11eb-1105-e9de20c924c5
@@ -1301,6 +1457,8 @@ bigbreak
 # ╠═b55bd702-7451-11eb-0bba-91c2bd80781b
 # ╠═92ec7240-7543-11eb-0d5a-59cad2763e85
 # ╠═87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
+# ╠═4f0645a0-7ac1-11eb-2c62-19ac7cc43791
+# ╠═e7c5c6de-7ac0-11eb-34fc-a50dcb8ff978
 # ╟─49fa8092-0a43-11eb-0ba9-65785ac6a42f
 # ╠═d9df1900-744e-11eb-3ef8-3118046387b4
 # ╠═3f4f7b30-78fb-11eb-24f9-911ebdcd5e95
@@ -1317,7 +1475,6 @@ bigbreak
 # ╠═4cf889a0-7542-11eb-3616-4d834e52ee4c
 # ╠═55aa7d60-7542-11eb-075b-43faad33820b
 # ╠═5abba3b0-7542-11eb-3a7d-4d01597f636b
-# ╠═4291f620-7544-11eb-3eee-89fbf92fc6bf
 # ╠═d1bcd5c4-0a4b-11eb-1218-7531e367a7ff
 # ╠═d0f6dcb2-7543-11eb-175b-efa4ab8e858a
 # ╟─34778744-0a5f-11eb-22b6-abe8b8fc34fd
@@ -1332,10 +1489,23 @@ bigbreak
 # ╠═ef27de84-0a63-11eb-177f-2197439374c5
 # ╠═3686e8a0-78ef-11eb-27bf-df870be6fc67
 # ╠═2a113620-78ef-11eb-24dd-87bf3f74fe7d
+# ╠═9f156740-7ac8-11eb-1b19-81425f434f27
+# ╠═1356ecc0-7ac2-11eb-0d7b-1d303a8191b1
+# ╠═bbcd1680-7ac8-11eb-0bbb-f5bcd8d406f7
+# ╠═86f3f0b0-7ac2-11eb-2727-87853e0f38d0
+# ╠═b7dd9100-7ac1-11eb-342b-0df45dda99da
+# ╠═ecd1c042-7ac4-11eb-2446-87fe06e6c67f
 # ╠═6aa88270-78ee-11eb-28b5-edaa698dc6db
 # ╟─8475baf0-0a63-11eb-1207-23f789d00802
 # ╟─201a3810-0a45-11eb-0ac9-a90419d0b723
+# ╠═083ea330-7ac9-11eb-2836-8964e6056026
+# ╟─cb3aaf70-7acc-11eb-1503-2d30395fec65
+# ╠═736b3e50-7acb-11eb-041a-01593f058052
+# ╠═eb1d072e-7acb-11eb-0b10-21946f29f662
 # ╠═e5040c9e-0a65-11eb-0f45-270ab8161871
+# ╠═8f54e7d0-7ace-11eb-3ace-69b23953d99f
+# ╠═5f3cef60-7acf-11eb-13fc-f73f4a813fb9
+# ╠═ba95a3be-7acf-11eb-33a8-0b50577145d1
 # ╟─f9b9e242-0a53-11eb-0c6a-4d9985ef1687
 # ╟─2031246c-0a45-11eb-18d3-573f336044bf
 # ╠═63dd9478-0a45-11eb-2340-6d3d00f9bb5f
