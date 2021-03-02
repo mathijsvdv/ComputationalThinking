@@ -517,11 +517,6 @@ color(a::Agent) = color(a.status) # uncomment this line
 # ╔═╡ 4f0645a0-7ac1-11eb-2c62-19ac7cc43791
 
 
-# ╔═╡ e7c5c6de-7ac0-11eb-34fc-a50dcb8ff978
-count_S(agents::AbstractVector{Agent}) = count(get_status.(agents) .== I)
-count_I(agents::AbstractVector{Agent}) = count(get_status.(agents) .== I)
-count_R(agents::AbstractVector{Agent}) = count(get_status.(agents) .== I)
-
 # ╔═╡ 49fa8092-0a43-11eb-0ba9-65785ac6a42f
 md"""
 #### Exercise 2.2
@@ -864,7 +859,7 @@ begin
 		R_counts[1] = get(counts, R, 0)
 
 		for i in 1:k_sweeps
-			sweep!(agents, L, pandemic)
+			sweep!(agents, L, infection)
 
 			counts = countmap(get_status.(agents))
 			S_counts[i+1] = get(counts, S, 0)
@@ -954,7 +949,7 @@ begin
 
 		for i in 1:k_sweeps
 			agents = deepcopy(agents)
-			sweep!(agents, L, pandemic)
+			sweep!(agents, L, infection)
 			states[i+1] = agents
 		end
 
@@ -995,14 +990,50 @@ md"""
 👉  Using $L=20$ and $N=100$, experiment with the infection and recovery probabilities until you find an epidemic outbreak. (Take the recovery probability quite small.) Modify the two infections below to match your observations.
 """
 
-# ╔═╡ 63dd9478-0a45-11eb-2340-6d3d00f9bb5f
-causes_outbreak = CollisionInfectionRecovery(0.5, 0.001)
+# ╔═╡ f4e88890-7b8c-11eb-086d-07bfd284ce5c
+@bind causes_outbreak_p_infection Slider(0.001:0.001:0.5, default=0.01, 
+	show_value=true)
 
-# ╔═╡ 269955e4-0a46-11eb-02cc-1946dc918bfa
-does_not_cause_outbreak = CollisionInfectionRecovery(0.5, 0.001)
+# ╔═╡ b5a385d0-7b8d-11eb-386a-ef00c57f12da
+@bind causes_outbreak_p_recovery Slider(1.0e-5:1.0e-5:1.0e-3, default=1.0e-4, 
+	show_value=true)
+
+# ╔═╡ 63dd9478-0a45-11eb-2340-6d3d00f9bb5f
+# causes_outbreak = CollisionInfectionRecovery(0.2, 3.0e-5)
+# causes_outbreak = CollisionInfectionRecovery(0.319, 5.0e-5)
+causes_outbreak = CollisionInfectionRecovery(causes_outbreak_p_infection, 
+	causes_outbreak_p_recovery)
 
 # ╔═╡ 4d4548fe-0a66-11eb-375a-9313dc6c423d
+let
+	N = 100
+	L = 20
+	simulation = simulate_sir(N, L, k_sweep_max, causes_outbreak)
+	plot(simulation)
+end
 
+# ╔═╡ 5983d090-7b90-11eb-2d92-15cc560a7223
+@bind does_not_cause_outbreak_p_infection Slider(0.001:0.001:0.5, default=0.01, 
+	show_value=true)
+
+# ╔═╡ 5e8f518e-7b90-11eb-1f09-45599163b062
+@bind does_not_cause_outbreak_p_recovery Slider(1.0e-5:1.0e-5:1.0e-3, default=1.0e-4, 
+	show_value=true)
+
+# ╔═╡ 6151f400-7b90-11eb-3e0b-b1f7e7d355db
+# does_not_cause_outbreak = CollisionInfectionRecovery(0.147, 8.0e-5)
+# does_not_cause_outbreak = CollisionInfectionRecovery(0.213, 0.00012)
+does_not_cause_outbreak = CollisionInfectionRecovery(
+	does_not_cause_outbreak_p_infection, does_not_cause_outbreak_p_recovery
+)
+
+# ╔═╡ 74301f70-7b90-11eb-1cba-9fd97d1d17a9
+let
+	N = 100
+	L = 20
+	simulation = simulate_sir(N, L, k_sweep_max, does_not_cause_outbreak)
+	plot(simulation)
+end
 
 # ╔═╡ 20477a78-0a45-11eb-39d7-93918212a8bc
 md"""
@@ -1458,7 +1489,6 @@ bigbreak
 # ╠═92ec7240-7543-11eb-0d5a-59cad2763e85
 # ╠═87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
 # ╠═4f0645a0-7ac1-11eb-2c62-19ac7cc43791
-# ╠═e7c5c6de-7ac0-11eb-34fc-a50dcb8ff978
 # ╟─49fa8092-0a43-11eb-0ba9-65785ac6a42f
 # ╠═d9df1900-744e-11eb-3ef8-3118046387b4
 # ╠═3f4f7b30-78fb-11eb-24f9-911ebdcd5e95
@@ -1508,9 +1538,14 @@ bigbreak
 # ╠═ba95a3be-7acf-11eb-33a8-0b50577145d1
 # ╟─f9b9e242-0a53-11eb-0c6a-4d9985ef1687
 # ╟─2031246c-0a45-11eb-18d3-573f336044bf
+# ╠═f4e88890-7b8c-11eb-086d-07bfd284ce5c
+# ╠═b5a385d0-7b8d-11eb-386a-ef00c57f12da
 # ╠═63dd9478-0a45-11eb-2340-6d3d00f9bb5f
-# ╠═269955e4-0a46-11eb-02cc-1946dc918bfa
 # ╠═4d4548fe-0a66-11eb-375a-9313dc6c423d
+# ╠═5983d090-7b90-11eb-2d92-15cc560a7223
+# ╠═5e8f518e-7b90-11eb-1f09-45599163b062
+# ╠═6151f400-7b90-11eb-3e0b-b1f7e7d355db
+# ╠═74301f70-7b90-11eb-1cba-9fd97d1d17a9
 # ╟─20477a78-0a45-11eb-39d7-93918212a8bc
 # ╠═601f4f54-0a45-11eb-3d6c-6b9ec75c6d4a
 # ╠═b1b1afda-0a66-11eb-2988-752405815f95
