@@ -376,6 +376,9 @@ Let's define a type `Agent`. `Agent` contains a `position` (of type `Coordinate`
 (For simplicity we will not use a `num_infected` field, but feel free to do so!)
 """
 
+# ╔═╡ ac912450-7e87-11eb-3de7-57409621597a
+abstract type AbstractAgent end
+
 # ╔═╡ 0d44e9c0-7547-11eb-3317-a1e0280af9e9
 md"**Mathijs note:** So what I was going to say was the following:
 
@@ -402,7 +405,7 @@ end
 
 # ╔═╡ cf2f3b98-09a0-11eb-032a-49cc8c15e89c
 begin
-	mutable struct Agent
+	mutable struct Agent <: AbstractAgent
 		position::Coordinate
 		status::InfectionStatus
 		num_infected::Int
@@ -415,7 +418,7 @@ end
 
 # ╔═╡ d879b68e-7554-11eb-3fea-298297ac8001
 begin
-	mutable struct AgentDispatch{TI<:AbstractInfectionStatus}
+	mutable struct AgentDispatch{TI<:AbstractInfectionStatus} <: AbstractAgent
 		position::Coordinate
 		status::TI
 		num_infected::Int
@@ -434,15 +437,15 @@ end
 
 # ╔═╡ 2f7ef9e0-7556-11eb-2770-4bd731ae08c5
 begin
-	is_susceptible(a::Agent) = a.status == S
-	is_infected(a::Agent) = a.status == I
-	is_recovered(a::Agent) = a.status == R
+	is_susceptible(a::AbstractAgent) = a.status == S
+	is_infected(a::AbstractAgent) = a.status == I
+	is_recovered(a::AbstractAgent) = a.status == R
 end
 
 # ╔═╡ dff49f02-7556-11eb-051f-2195a55c3266
 begin
-	get_num_infected(a::Agent) = a.num_infected
-	function set_num_infected!(a::Agent, num_infected)
+	get_num_infected(a::AbstractAgent) = a.num_infected
+	function set_num_infected!(a::AbstractAgent, num_infected)
 		a.num_infected = num_infected
 	end
 end
@@ -501,18 +504,18 @@ else
 end
 
 # ╔═╡ b5a88504-0a47-11eb-0eda-f125d419e909
-position(a::Agent) = a.position # uncomment this line
+position(a::AbstractAgent) = a.position # uncomment this line
 
 # ╔═╡ b55bd702-7451-11eb-0bba-91c2bd80781b
-get_status(a::Agent) = a.status
+get_status(a::AbstractAgent) = a.status
 
 # ╔═╡ 92ec7240-7543-11eb-0d5a-59cad2763e85
-function set_status!(agent::Agent, new_status::InfectionStatus)
+function set_status!(agent::AbstractAgent, new_status::InfectionStatus)
 	agent.status = new_status
 end
 
 # ╔═╡ 87a4cdaa-0a5a-11eb-2a5e-cfaf30e942ca
-color(a::Agent) = color(a.status) # uncomment this line
+color(a::AbstractAgent) = color(a.status) # uncomment this line
 
 # ╔═╡ 4f0645a0-7ac1-11eb-2c62-19ac7cc43791
 
@@ -624,31 +627,32 @@ function bernoulli(p::Number)
 end
 
 # ╔═╡ 4cf889a0-7542-11eb-3616-4d834e52ee4c
-function infect!(agent::Agent, source::Agent)
+function infect!(agent::AbstractAgent, source::AbstractAgent)
 	set_status!(agent, I)
 	set_num_infected!(source, get_num_infected(source) + 1)
 end
 
 # ╔═╡ 55aa7d60-7542-11eb-075b-43faad33820b
 begin
-	function recover!(agent::Agent)
+	function recover!(agent::AbstractAgent)
 		set_status!(agent, R)
 	end
 
-	function recover!(agent::Agent, infection::AbstractInfection)
-		recover!(agent::Agent)
+	function recover!(agent::AbstractAgent, infection::AbstractInfection)
+		recover!(agent::AbstractAgent)
 	end
 end
 
 # ╔═╡ 5abba3b0-7542-11eb-3a7d-4d01597f636b
 begin
-	function try_infect!(agent::Agent, source::Agent, infection::AbstractInfection)
+	function try_infect!(agent::AbstractAgent, source::AbstractAgent, 
+			infection::AbstractInfection)
 		if bernoulli(get_p_infection(infection))
 			infect!(agent, source)
 		end
 	end
 	
-	function try_recover!(agent::Agent, infection::AbstractInfection)
+	function try_recover!(agent::AbstractAgent, infection::AbstractInfection)
 		if bernoulli(get_p_recovery(infection))
 			recover!(agent, infection)
 		end
@@ -657,7 +661,7 @@ end
 
 # ╔═╡ d1bcd5c4-0a4b-11eb-1218-7531e367a7ff
 begin
-	function interact!(agent::Agent, source::Agent, infection::AbstractInfection)
+	function interact!(agent::AbstractAgent, source::AbstractAgent, infection::AbstractInfection)
 		if is_susceptible(agent) && is_infected(source)
 			try_infect!(agent, source, infection)		
 		elseif is_infected(agent)
@@ -665,22 +669,13 @@ begin
 		end
 	end
 	
-	function interact!(agent::Agent, source::Agent, infection::CollisionInfectionRecovery)
+	function interact!(agent::AbstractAgent, source::AbstractAgent, infection::CollisionInfectionRecovery)
 		if is_susceptible(agent) && is_infected(source) && position(agent) == position(source)
 			try_infect!(agent, source, infection)
 		elseif is_infected(agent)
 			try_recover!(agent, infection)
 		end
 	end 
-end
-
-# ╔═╡ d0f6dcb2-7543-11eb-175b-efa4ab8e858a
-let
-	agent = Agent(Coordinate(), S)
-	source = Agent(Coordinate(), I)
-	infection = CollisionInfectionRecovery(0.5, 0.002)
-	interact!(agent, source, infection)
-	agent
 end
 
 # ╔═╡ 34778744-0a5f-11eb-22b6-abe8b8fc34fd
@@ -699,31 +694,6 @@ Your turn!
 - return the array `agents` again.
 """
 
-# ╔═╡ f3f3b0d2-78e5-11eb-392a-2fde7fb451eb
-begin
-	function step!(source::Agent, move::Coordinate, L::Number)
-		source.position = collide_boundary(source.position + move, L)
-	end
-	
-	function step!(source, L::Number)
-		step!(source, rand(possible_moves), L)
-	end
-	
-	function step!(agents::Vector, L::Number, infection::AbstractInfection)
-		i_source = rand(1:length(agents))
-		source = agents[i_source]
-		step!(source, L)
-		
-		other_agents = agents[1:end .!= i_source]
-		for other_agent in other_agents
-			interact!(other_agent, source, infection)
-		end
-		
-		return agents
-	end
-end
-
-
 # ╔═╡ 1fc3271e-0a45-11eb-0e8d-0fd355f5846b
 md"""
 #### Exercise 3.2
@@ -741,35 +711,11 @@ plot(plot_before, plot_after)
 ```
 """
 
-# ╔═╡ e372c460-78e7-11eb-1c68-53cf521ff221
-function sweep!(agents::Vector, L::Number, infection::AbstractInfection)
-	for i in 1:length(agents)
-		step!(agents, L, infection)
-	end
-end
-
 # ╔═╡ 18552c36-0a4d-11eb-19a0-d7d26897af36
 pandemic = CollisionInfectionRecovery(0.5, 0.00001)
 
 # ╔═╡ 4e7fd58a-0a62-11eb-1596-c717e0845bd5
 @bind k_sweeps Slider(1:10000, default=1000, show_value=true)
-
-# ╔═╡ 778c2490-0a62-11eb-2a6c-e7fab01c6822
-let
-	N = 50
-	L = 40
-	agents = initialize(N, L)
-	
-	plot_before = visualize(agents, L)
-	
-	for i in 1:k_sweeps
-		sweep!(agents, L, pandemic)
-	end
-	
-	plot_after = visualize(agents, L)
-	
-	plot(plot_before, plot_after)
-end
 
 # ╔═╡ e964c7f0-0a61-11eb-1782-0b728fab1db0
 md"""
@@ -835,6 +781,258 @@ begin
 	)
 end
 
+# ╔═╡ 6aa88270-78ee-11eb-28b5-edaa698dc6db
+countmap([1, 1, 3, 4, 3])
+
+# ╔═╡ 201a3810-0a45-11eb-0ac9-a90419d0b723
+md"""
+#### Exercise 3.4 (optional)
+Let's make our plot come alive! There are two options to make our visualization dynamic:
+
+👉1️⃣ Precompute one simulation run and save its intermediate states using `deepcopy`. You can then write an interactive visualization that shows both the state at time $t$ (using `visualize`) and the history of $S$, $I$ and $R$ from time $0$ up to time $t$. $t$ is controlled by a slider.
+
+👉2️⃣ Use `@gif` from Plots.jl to turn a sequence of plots into an animation. Be careful to skip about 50 sweeps between each animation frame, otherwise the GIF becomes too large.
+
+This an optional exercise, and our solution to 2️⃣ is given below.
+"""
+
+# ╔═╡ 083ea330-7ac9-11eb-2836-8964e6056026
+"""Stores all intermediate states rather than just the `S_counts`, `I_counts` and `R_counts`"""
+struct FullSimulation{T<:AbstractVector} <: AbstractSimulation
+	states::Vector{Vector{Agent}}
+	index::T
+end
+
+# ╔═╡ cb3aaf70-7acc-11eb-1503-2d30395fec65
+md"Not the most efficient implementation here: every time we want the count of one status we have to go through all of them. Better would be to cache the counts of all statuses at once. But for now this works."
+
+# ╔═╡ 736b3e50-7acb-11eb-041a-01593f058052
+begin
+	get_S_counts(sim::FullSimulation) = [count(get_status.(agents) .== S) for agents in sim.states]
+	get_I_counts(sim::FullSimulation) = [count(get_status.(agents) .== I) for agents in sim.states]
+	get_R_counts(sim::FullSimulation) = [count(get_status.(agents) .== R) for agents in sim.states]
+	Base.length(sim::FullSimulation) = length(sim.index)
+	Base.getindex(sim::FullSimulation, inds) = FullSimulation(
+		sim.states[inds], sim.index[inds]
+	)
+end
+
+# ╔═╡ b7dd9100-7ac1-11eb-342b-0df45dda99da
+begin
+	function Plots.plot(sim::AbstractSimulation, args...; kw...)
+		sir = [get_S_counts(sim), get_I_counts(sim), get_R_counts(sim)]
+		
+		plot(sim.index, sir, args...; label=[S I R],  kw...)
+	end
+
+	function Plots.plot!(plt::Plots.Plot, sim::AbstractSimulation, args...; kw...)
+		sir = [get_S_counts(sim), get_I_counts(sim), get_R_counts(sim)]
+		
+		plot!(plt, sim.index, sir, args...; label=[S I R], kw...)
+	end
+end
+
+# ╔═╡ 8f54e7d0-7ace-11eb-3ace-69b23953d99f
+@bind t Slider(0:k_sweep_max, show_value=true)
+
+# ╔═╡ ba95a3be-7acf-11eb-33a8-0b50577145d1
+# Takes about 3 min, uncomment to get a cool gif!
+# @gif for t ∈ 0:k_sweep_max
+#     p_vis = visualize(simulation.states[t+1], 30)
+# 	p_sir = plot(simulation[1:t+1])
+	
+# 	plot(p_vis, p_sir)
+# end every 50
+
+# ╔═╡ 2031246c-0a45-11eb-18d3-573f336044bf
+md"""
+#### Exercise 3.5
+👉  Using $L=20$ and $N=100$, experiment with the infection and recovery probabilities until you find an epidemic outbreak. (Take the recovery probability quite small.) Modify the two infections below to match your observations.
+"""
+
+# ╔═╡ f4e88890-7b8c-11eb-086d-07bfd284ce5c
+@bind causes_outbreak_p_infection Slider(0.001:0.001:0.5, default=0.01, 
+	show_value=true)
+
+# ╔═╡ b5a385d0-7b8d-11eb-386a-ef00c57f12da
+@bind causes_outbreak_p_recovery Slider(1.0e-5:1.0e-5:1.0e-3, default=1.0e-4, 
+	show_value=true)
+
+# ╔═╡ 63dd9478-0a45-11eb-2340-6d3d00f9bb5f
+causes_outbreak = CollisionInfectionRecovery(0.2, 3.0e-5)
+# causes_outbreak = CollisionInfectionRecovery(0.319, 5.0e-5)
+# causes_outbreak = CollisionInfectionRecovery(causes_outbreak_p_infection, 
+# 	causes_outbreak_p_recovery)
+
+# ╔═╡ 5983d090-7b90-11eb-2d92-15cc560a7223
+@bind does_not_cause_outbreak_p_infection Slider(0.001:0.001:0.5, default=0.01, 
+	show_value=true)
+
+# ╔═╡ 5e8f518e-7b90-11eb-1f09-45599163b062
+@bind does_not_cause_outbreak_p_recovery Slider(1.0e-5:1.0e-5:1.0e-3, default=1.0e-4, 
+	show_value=true)
+
+# ╔═╡ 6151f400-7b90-11eb-3e0b-b1f7e7d355db
+does_not_cause_outbreak = CollisionInfectionRecovery(0.147, 8.0e-5)
+# does_not_cause_outbreak = CollisionInfectionRecovery(0.213, 0.00012)
+# does_not_cause_outbreak = CollisionInfectionRecovery(
+# 	does_not_cause_outbreak_p_infection, does_not_cause_outbreak_p_recovery
+# )
+
+# ╔═╡ 20477a78-0a45-11eb-39d7-93918212a8bc
+md"""
+#### Exercise 3.6
+👉 With the parameters of Exercise 3.2, run 50 simulations. Plot $S$, $I$ and $R$ as a function of time for each of them (with transparency!). This should look qualitatively similar to what you saw in the previous homework. You probably need different `p_infection` and `p_recovery` values from last week. Why?
+"""
+
+# ╔═╡ b1b1afda-0a66-11eb-2988-752405815f95
+need_different_parameters_because = md"""
+Compare parameters of HW4: InfectionRecovery(0.02, 0.002).
+
+In this simulation we see the pandemic spreads slower with the same parameters than in HW4: infectious agents have to be in the same position as susceptible ones to infect, making it so that the infection probability has to be much higher (0.5) and recovery much lower (1e-5) to get a similar result. The pandemic is much more variable as well,  depending on how many susceptible agents the infected encounter.
+"""
+
+# ╔═╡ 05c80a0c-09a0-11eb-04dc-f97e306f1603
+md"""
+## **Exercise 4:** _Effect of socialization_
+
+In this exercise we'll modify the simple mixing model. Instead of a constant mixing probability, i.e. a constant probability that any pair of people interact on a given day, we will have a variable probability associated with each agent, modelling the fact that some people are more or less social or contagious than others.
+"""
+
+# ╔═╡ b53d5608-0a41-11eb-2325-016636a22f71
+md"""
+#### Exercise 4.1
+We create a new agent type `SocialAgent` with fields `position`, `status`, `num_infected`, and `social_score`. The attribute `social_score` represents an agent's probability of interacting with any other agent in the population.
+"""
+
+# ╔═╡ e0b81550-7e86-11eb-0e16-5d22a85ddd4c
+begin
+	mutable struct SocialAgent <: AbstractAgent
+		position::Coordinate
+		status::InfectionStatus
+		num_infected::Int64
+		social_score::Float64
+	end
+	
+	SocialAgent(position::Coordinate, status::InfectionStatus, social_score::Float64) = SocialAgent(position, status, 0, social_score)
+	SocialAgent(position::Coordinate, social_score::Float64) = SocialAgent(position, S, social_score)
+	SocialAgent(social_score::Float64) = SocialAgent(Coordinate(), social_score)
+end
+
+# ╔═╡ c704ea4c-0aec-11eb-2f2c-859c954aa520
+md"""define the `position` and `color` methods for `SocialAgent` as we did for `Agent`. This will allow the `visualize` function to work. on both kinds of Agents"""
+
+# ╔═╡ b554b654-0a41-11eb-0e0d-e57ff68ced33
+md"""
+👉 Create a function `initialize_social` that takes `N` and `L`, and creates N agents  within a 2L x 2L box, with `social_score`s chosen from 10 equally-spaced between 0.1 and 0.5. (see LinRange)
+"""
+
+# ╔═╡ c6a1c4de-7e86-11eb-221b-8fb2e5288f87
+begin
+	function initialize_social(N::Number, box::Box)
+		social_scores = LinRange(0.1, 0.5, 10)
+		agents = [SocialAgent(rand(box), S, rand(social_scores)) for i ∈ 1:N]
+		rand(agents).status = I
+		return agents
+	end
+	
+	function initialize_social(N::Number, L::Number)
+		return initialize_social(N, Box(L))
+	end
+end
+
+# ╔═╡ 18ac9926-0aed-11eb-034f-e9849b71c9ac
+md"""
+Now that we have 2 agent types
+
+1. let's create an AbstractAgent type
+2. Go back in the notebook and make the agent types a subtype of AbstractAgent.
+
+"""
+
+# ╔═╡ b56ba420-0a41-11eb-266c-719d39580fa9
+md"""
+#### Exercise 4.2
+Not all two agents who end up in the same grid point may actually interact in an infectious way -- they may just be passing by and do not create enough exposure for communicating the disease.
+
+👉 Write a new `interact!` method on `SocialAgent` which adds together the social_scores for two agents and uses that as the probability that they interact in a risky way. Only if they interact in a risky way, the infection is transmitted with the usual probability.
+"""
+
+# ╔═╡ 0bfe5a10-7e89-11eb-12de-b33e38014545
+get_p_risky_interaction(agent::SocialAgent, source::SocialAgent) = 
+	agent.social_score + source.social_score
+
+# ╔═╡ 5f6c3b40-7e89-11eb-3f7d-151c87891daf
+is_risky_interaction(agent::SocialAgent, source::SocialAgent) = 	
+	bernoulli(get_p_risky_interaction)
+
+# ╔═╡ f627af22-7e88-11eb-1257-dd5d91ca2818
+	function interact!(agent::SocialAgent, source::SocialAgent, infection::CollisionInfectionRecovery)
+		if is_susceptible(agent) && is_infected(source) && position(agent) == position(source) && is_risky_interaction(agent, source)
+			try_infect!(agent, source, infection)
+		elseif is_infected(agent)
+			try_recover!(agent, infection)
+		end
+	end 
+
+# ╔═╡ d0f6dcb2-7543-11eb-175b-efa4ab8e858a
+let
+	agent = Agent(Coordinate(), S)
+	source = Agent(Coordinate(), I)
+	infection = CollisionInfectionRecovery(0.5, 0.002)
+	interact!(agent, source, infection)
+	agent
+end
+
+# ╔═╡ f3f3b0d2-78e5-11eb-392a-2fde7fb451eb
+begin
+	function step!(source::AbstractAgent, move::Coordinate, L::Number)
+		source.position = collide_boundary(source.position + move, L)
+	end
+	
+	function step!(source, L::Number)
+		step!(source, rand(possible_moves), L)
+	end
+	
+	function step!(agents::Vector, L::Number, infection::AbstractInfection)
+		i_source = rand(1:length(agents))
+		source = agents[i_source]
+		step!(source, L)
+		
+		other_agents = agents[1:end .!= i_source]
+		for other_agent in other_agents
+			interact!(other_agent, source, infection)
+		end
+		
+		return agents
+	end
+end
+
+
+# ╔═╡ e372c460-78e7-11eb-1c68-53cf521ff221
+function sweep!(agents::Vector, L::Number, infection::AbstractInfection)
+	for i in 1:length(agents)
+		step!(agents, L, infection)
+	end
+end
+
+# ╔═╡ 778c2490-0a62-11eb-2a6c-e7fab01c6822
+let
+	N = 50
+	L = 40
+	agents = initialize(N, L)
+	
+	plot_before = visualize(agents, L)
+	
+	for i in 1:k_sweeps
+		sweep!(agents, L, pandemic)
+	end
+	
+	plot_after = visualize(agents, L)
+	
+	plot(plot_before, plot_after)
+end
+
 # ╔═╡ 86f3f0b0-7ac2-11eb-2727-87853e0f38d0
 begin
 	function simulate_sir(N::Int64, L::Int64, k_sweeps::Int64, 
@@ -879,55 +1077,34 @@ let
 	plot(simulation)
 end
 
-# ╔═╡ 6aa88270-78ee-11eb-28b5-edaa698dc6db
-countmap([1, 1, 3, 4, 3])
-
-# ╔═╡ 201a3810-0a45-11eb-0ac9-a90419d0b723
-md"""
-#### Exercise 3.4 (optional)
-Let's make our plot come alive! There are two options to make our visualization dynamic:
-
-👉1️⃣ Precompute one simulation run and save its intermediate states using `deepcopy`. You can then write an interactive visualization that shows both the state at time $t$ (using `visualize`) and the history of $S$, $I$ and $R$ from time $0$ up to time $t$. $t$ is controlled by a slider.
-
-👉2️⃣ Use `@gif` from Plots.jl to turn a sequence of plots into an animation. Be careful to skip about 50 sweeps between each animation frame, otherwise the GIF becomes too large.
-
-This an optional exercise, and our solution to 2️⃣ is given below.
-"""
-
-# ╔═╡ 083ea330-7ac9-11eb-2836-8964e6056026
-"""Stores all intermediate states rather than just the `S_counts`, `I_counts` and `R_counts`"""
-struct FullSimulation{T<:AbstractVector} <: AbstractSimulation
-	states::Vector{Vector{Agent}}
-	index::T
+# ╔═╡ 4d4548fe-0a66-11eb-375a-9313dc6c423d
+let
+	N = 100
+	L = 20
+	simulation = simulate_sir(N, L, k_sweep_max, causes_outbreak)
+	plot(simulation)
 end
 
-# ╔═╡ cb3aaf70-7acc-11eb-1503-2d30395fec65
-md"Not the most efficient implementation here: every time we want the count of one status we have to go through all of them. Better would be to cache the counts of all statuses at once. But for now this works."
-
-# ╔═╡ 736b3e50-7acb-11eb-041a-01593f058052
-begin
-	get_S_counts(sim::FullSimulation) = [count(get_status.(agents) .== S) for agents in sim.states]
-	get_I_counts(sim::FullSimulation) = [count(get_status.(agents) .== I) for agents in sim.states]
-	get_R_counts(sim::FullSimulation) = [count(get_status.(agents) .== R) for agents in sim.states]
-	Base.length(sim::FullSimulation) = length(sim.index)
-	Base.getindex(sim::FullSimulation, inds) = FullSimulation(
-		sim.states[inds], sim.index[inds]
-	)
+# ╔═╡ 74301f70-7b90-11eb-1cba-9fd97d1d17a9
+let
+	N = 100
+	L = 20
+	simulation = simulate_sir(N, L, k_sweep_max, does_not_cause_outbreak)
+	plot(simulation)
 end
 
-# ╔═╡ b7dd9100-7ac1-11eb-342b-0df45dda99da
-begin
-	function Plots.plot(sim::AbstractSimulation, args...; kw...)
-		sir = [get_S_counts(sim), get_I_counts(sim), get_R_counts(sim)]
-		
-		plot(sim.index, sir, args...; label=[S I R], kw...)
-	end
+# ╔═╡ 601f4f54-0a45-11eb-3d6c-6b9ec75c6d4a
+let
+	N = 50
+	L = 40
+	p = plot()
 
-	function Plots.plot!(plt::Plots.Plot, sim::AbstractSimulation, args...; kw...)
-		sir = [get_S_counts(sim), get_I_counts(sim), get_R_counts(sim)]
-		
-		plot!(plt, sim.index, sir, args...; label=[S I R], kw...)
+	for i ∈ 1:50
+		simulation = simulate_sir(N, L, k_sweep_max, pandemic)
+		plot!(p, simulation, linealpha=0.5, c=[:blue :red :green])
 	end
+	
+	p
 end
 
 # ╔═╡ eb1d072e-7acb-11eb-0b10-21946f29f662
@@ -964,9 +1141,6 @@ simulation = let
 	simulation = simulate_full_sir(N, L, k_sweep_max, pandemic)
 end
 
-# ╔═╡ 8f54e7d0-7ace-11eb-3ace-69b23953d99f
-@bind t Slider(0:k_sweep_max, show_value=true)
-
 # ╔═╡ 5f3cef60-7acf-11eb-13fc-f73f4a813fb9
 let
 	p_vis = visualize(simulation.states[t+1], 30)
@@ -975,137 +1149,8 @@ let
 	plot(p_vis, p_sir)
 end
 
-# ╔═╡ ba95a3be-7acf-11eb-33a8-0b50577145d1
-# Takes about 3 min, uncomment to get a cool gif!
-# @gif for t ∈ 0:k_sweep_max
-#     p_vis = visualize(simulation.states[t+1], 30)
-# 	p_sir = plot(simulation[1:t+1])
-	
-# 	plot(p_vis, p_sir)
-# end every 50
-
-# ╔═╡ 2031246c-0a45-11eb-18d3-573f336044bf
-md"""
-#### Exercise 3.5
-👉  Using $L=20$ and $N=100$, experiment with the infection and recovery probabilities until you find an epidemic outbreak. (Take the recovery probability quite small.) Modify the two infections below to match your observations.
-"""
-
-# ╔═╡ f4e88890-7b8c-11eb-086d-07bfd284ce5c
-@bind causes_outbreak_p_infection Slider(0.001:0.001:0.5, default=0.01, 
-	show_value=true)
-
-# ╔═╡ b5a385d0-7b8d-11eb-386a-ef00c57f12da
-@bind causes_outbreak_p_recovery Slider(1.0e-5:1.0e-5:1.0e-3, default=1.0e-4, 
-	show_value=true)
-
-# ╔═╡ 63dd9478-0a45-11eb-2340-6d3d00f9bb5f
-# causes_outbreak = CollisionInfectionRecovery(0.2, 3.0e-5)
-# causes_outbreak = CollisionInfectionRecovery(0.319, 5.0e-5)
-causes_outbreak = CollisionInfectionRecovery(causes_outbreak_p_infection, 
-	causes_outbreak_p_recovery)
-
-# ╔═╡ 4d4548fe-0a66-11eb-375a-9313dc6c423d
-let
-	N = 100
-	L = 20
-	simulation = simulate_sir(N, L, k_sweep_max, causes_outbreak)
-	plot(simulation)
-end
-
-# ╔═╡ 5983d090-7b90-11eb-2d92-15cc560a7223
-@bind does_not_cause_outbreak_p_infection Slider(0.001:0.001:0.5, default=0.01, 
-	show_value=true)
-
-# ╔═╡ 5e8f518e-7b90-11eb-1f09-45599163b062
-@bind does_not_cause_outbreak_p_recovery Slider(1.0e-5:1.0e-5:1.0e-3, default=1.0e-4, 
-	show_value=true)
-
-# ╔═╡ 6151f400-7b90-11eb-3e0b-b1f7e7d355db
-# does_not_cause_outbreak = CollisionInfectionRecovery(0.147, 8.0e-5)
-# does_not_cause_outbreak = CollisionInfectionRecovery(0.213, 0.00012)
-does_not_cause_outbreak = CollisionInfectionRecovery(
-	does_not_cause_outbreak_p_infection, does_not_cause_outbreak_p_recovery
-)
-
-# ╔═╡ 74301f70-7b90-11eb-1cba-9fd97d1d17a9
-let
-	N = 100
-	L = 20
-	simulation = simulate_sir(N, L, k_sweep_max, does_not_cause_outbreak)
-	plot(simulation)
-end
-
-# ╔═╡ 20477a78-0a45-11eb-39d7-93918212a8bc
-md"""
-#### Exercise 3.6
-👉 With the parameters of Exercise 3.2, run 50 simulations. Plot $S$, $I$ and $R$ as a function of time for each of them (with transparency!). This should look qualitatively similar to what you saw in the previous homework. You probably need different `p_infection` and `p_recovery` values from last week. Why?
-"""
-
-# ╔═╡ 601f4f54-0a45-11eb-3d6c-6b9ec75c6d4a
-
-
-# ╔═╡ b1b1afda-0a66-11eb-2988-752405815f95
-need_different_parameters_because = md"""
-i say so
-"""
-
-# ╔═╡ 05c80a0c-09a0-11eb-04dc-f97e306f1603
-md"""
-## **Exercise 4:** _Effect of socialization_
-
-In this exercise we'll modify the simple mixing model. Instead of a constant mixing probability, i.e. a constant probability that any pair of people interact on a given day, we will have a variable probability associated with each agent, modelling the fact that some people are more or less social or contagious than others.
-"""
-
-# ╔═╡ b53d5608-0a41-11eb-2325-016636a22f71
-md"""
-#### Exercise 4.1
-We create a new agent type `SocialAgent` with fields `position`, `status`, `num_infected`, and `social_score`. The attribute `social_score` represents an agent's probability of interacting with any other agent in the population.
-"""
-
-# ╔═╡ 1b5e72c6-0a42-11eb-3884-a377c72270c7
-# struct SocialAgent here...
-
-# ╔═╡ c704ea4c-0aec-11eb-2f2c-859c954aa520
-md"""define the `position` and `color` methods for `SocialAgent` as we did for `Agent`. This will allow the `visualize` function to work. on both kinds of Agents"""
-
-# ╔═╡ e97e39aa-0a5d-11eb-3d5f-f90a0acfe5a2
-# begin
-# 	position(a::SocialAgent) = ...
-# 	color(a::SocialAgent) = ...
-# end
-
-# ╔═╡ b554b654-0a41-11eb-0e0d-e57ff68ced33
-md"""
-👉 Create a function `initialize_social` that takes `N` and `L`, and creates N agents  within a 2L x 2L box, with `social_score`s chosen from 10 equally-spaced between 0.1 and 0.5. (see LinRange)
-"""
-
-# ╔═╡ 40c1c1d6-0a69-11eb-3913-59e9b9ec4332
-# function initialize_social(N, L)
-# 	return missing
-# end
-
-# ╔═╡ 18ac9926-0aed-11eb-034f-e9849b71c9ac
-md"""
-Now that we have 2 agent types
-
-1. let's create an AbstractAgent type
-2. Go back in the notebook and make the agent types a subtype of AbstractAgent.
-
-"""
-
-# ╔═╡ b56ba420-0a41-11eb-266c-719d39580fa9
-md"""
-#### Exercise 4.2
-Not all two agents who end up in the same grid point may actually interact in an infectious way -- they may just be passing by and do not create enough exposure for communicating the disease.
-
-👉 Write a new `interact!` method on `SocialAgent` which adds together the social_scores for two agents and uses that as the probability that they interact in a risky way. Only if they interact in a risky way, the infection is transmitted with the usual probability.
-"""
-
 # ╔═╡ 465e918a-0a69-11eb-1b59-01150b4b0f36
-# function interact!(agent::SocialAgent, source::SocialAgent, infection::CollisionInfectionRecovery)
-	
-# 	# your code here
-# end
+
 
 # ╔═╡ a885bf78-0a5c-11eb-2383-9d74c8765847
 md"""
@@ -1466,6 +1511,7 @@ bigbreak
 # ╠═873c8e30-743a-11eb-3250-f386cd311c0b
 # ╟─ed2d616c-0a66-11eb-1839-edf8d15cf82a
 # ╟─3ed06c80-0954-11eb-3aee-69e4ccdc4f9d
+# ╠═ac912450-7e87-11eb-3de7-57409621597a
 # ╟─0d44e9c0-7547-11eb-3317-a1e0280af9e9
 # ╠═ceaed8c0-7554-11eb-3367-8dd46abfdaae
 # ╠═d879b68e-7554-11eb-3fea-298297ac8001
@@ -1552,14 +1598,16 @@ bigbreak
 # ╟─e84e0944-0a66-11eb-12d3-e12ae10f39a6
 # ╟─05c80a0c-09a0-11eb-04dc-f97e306f1603
 # ╟─b53d5608-0a41-11eb-2325-016636a22f71
-# ╠═1b5e72c6-0a42-11eb-3884-a377c72270c7
+# ╠═e0b81550-7e86-11eb-0e16-5d22a85ddd4c
 # ╟─c704ea4c-0aec-11eb-2f2c-859c954aa520
-# ╠═e97e39aa-0a5d-11eb-3d5f-f90a0acfe5a2
 # ╟─b554b654-0a41-11eb-0e0d-e57ff68ced33
-# ╠═40c1c1d6-0a69-11eb-3913-59e9b9ec4332
+# ╠═c6a1c4de-7e86-11eb-221b-8fb2e5288f87
 # ╟─18ac9926-0aed-11eb-034f-e9849b71c9ac
 # ╟─b56ba420-0a41-11eb-266c-719d39580fa9
-# ╠═465e918a-0a69-11eb-1b59-01150b4b0f36
+# ╠═0bfe5a10-7e89-11eb-12de-b33e38014545
+# ╠═5f6c3b40-7e89-11eb-3f7d-151c87891daf
+# ╠═f627af22-7e88-11eb-1257-dd5d91ca2818
+# ╟─465e918a-0a69-11eb-1b59-01150b4b0f36
 # ╟─a885bf78-0a5c-11eb-2383-9d74c8765847
 # ╠═1f172700-0a42-11eb-353b-87c0039788bd
 # ╟─b59de26c-0a41-11eb-2c67-b5f3c7780c91
