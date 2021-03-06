@@ -798,9 +798,9 @@ This an optional exercise, and our solution to 2️⃣ is given below.
 
 # ╔═╡ 083ea330-7ac9-11eb-2836-8964e6056026
 """Stores all intermediate states rather than just the `S_counts`, `I_counts` and `R_counts`"""
-struct FullSimulation{T<:AbstractVector} <: AbstractSimulation
-	states::Vector{Vector{Agent}}
-	index::T
+struct FullSimulation{TA<:AbstractAgent, TI<:AbstractVector} <: AbstractSimulation
+	states::Vector{Vector{TA}}
+	index::TI
 end
 
 # ╔═╡ cb3aaf70-7acc-11eb-1503-2d30395fec65
@@ -922,6 +922,12 @@ end
 # ╔═╡ c704ea4c-0aec-11eb-2f2c-859c954aa520
 md"""define the `position` and `color` methods for `SocialAgent` as we did for `Agent`. This will allow the `visualize` function to work. on both kinds of Agents"""
 
+# ╔═╡ ea248f60-7e9a-11eb-20e9-693fe26f692a
+md"Not needed, `position` and `color` have now been defined taking `AbstractAgent` as input"
+
+# ╔═╡ f9ab7980-7e9a-11eb-0957-fb31aec07307
+get_social_score(a::SocialAgent) = a.social_score
+
 # ╔═╡ b554b654-0a41-11eb-0e0d-e57ff68ced33
 md"""
 👉 Create a function `initialize_social` that takes `N` and `L`, and creates N agents  within a 2L x 2L box, with `social_score`s chosen from 10 equally-spaced between 0.1 and 0.5. (see LinRange)
@@ -964,7 +970,7 @@ get_p_risky_interaction(agent::SocialAgent, source::SocialAgent) =
 
 # ╔═╡ 5f6c3b40-7e89-11eb-3f7d-151c87891daf
 is_risky_interaction(agent::SocialAgent, source::SocialAgent) = 	
-	bernoulli(get_p_risky_interaction)
+	bernoulli(get_p_risky_interaction(agent, source))
 
 # ╔═╡ f627af22-7e88-11eb-1257-dd5d91ca2818
 	function interact!(agent::SocialAgent, source::SocialAgent, infection::CollisionInfectionRecovery)
@@ -1035,17 +1041,9 @@ end
 
 # ╔═╡ 86f3f0b0-7ac2-11eb-2727-87853e0f38d0
 begin
-	function simulate_sir(N::Int64, L::Int64, k_sweeps::Int64, 
-			infection::AbstractInfection
-		)
-
-		agents = initialize(N, L)
-		return simulate_sir(agents, L, k_sweeps, infection)
-	end
-
-	function simulate_sir(agents::AbstractVector{Agent}, L::Int64, k_sweeps::Int64, 
-			infection::AbstractInfection
-		)
+	function simulate_sir(agents::AbstractVector{T}, L::Int64,
+			k_sweeps::Int64, infection::AbstractInfection
+		) where {T<:AbstractAgent}
 		
 		S_counts = Vector{Int64}(undef, k_sweeps + 1)
 		I_counts = Vector{Int64}(undef, k_sweeps + 1)
@@ -1066,6 +1064,21 @@ begin
 		end
 
 		return Simulation(S_counts, I_counts, R_counts, 0:k_sweeps)
+	end
+	
+	function simulate_sir(N::Int64, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection, initialize
+		)
+
+		agents = initialize(N, L)
+		return simulate_sir(agents, L, k_sweeps, infection)
+	end
+	
+	function simulate_sir(N::Int64, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection
+		)
+		
+		return simulate_sir(N, L, k_sweeps, infection, initialize)
 	end
 end
 
@@ -1109,19 +1122,11 @@ end
 
 # ╔═╡ eb1d072e-7acb-11eb-0b10-21946f29f662
 begin
-	function simulate_full_sir(N::Int64, L::Int64, k_sweeps::Int64, 
-			infection::AbstractInfection
-		)
-
-		agents = initialize(N, L)
-		return simulate_full_sir(agents, L, k_sweeps, infection)
-	end
-
-	function simulate_full_sir(agents::AbstractVector{Agent}, L::Int64, k_sweeps::Int64, 
-			infection::AbstractInfection
-		)
+	function simulate_full_sir(agents::AbstractVector{T},
+			L::Int64, k_sweeps::Int64, infection::AbstractInfection
+		) where {T<:AbstractAgent}
 		
-		states = Vector{Vector{Agent}}(undef, k_sweeps + 1)
+		states = Vector{Vector{T}}(undef, k_sweeps + 1)
 		states[1] = agents
 
 		for i in 1:k_sweeps
@@ -1131,6 +1136,21 @@ begin
 		end
 
 		return FullSimulation(states, 0:k_sweeps)
+	end
+	
+	function simulate_full_sir(N::Int64, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection, initialize
+		)
+
+		agents = initialize(N, L)
+		return simulate_full_sir(agents, L, k_sweeps, infection)
+	end
+	
+	function simulate_full_sir(N::Int64, L::Int64, k_sweeps::Int64, 
+			infection::AbstractInfection
+		)
+
+		return simulate_full_sir(N, L, k_sweeps, infection, initialize)
 	end
 end
 
@@ -1149,9 +1169,6 @@ let
 	plot(p_vis, p_sir)
 end
 
-# ╔═╡ 465e918a-0a69-11eb-1b59-01150b4b0f36
-
-
 # ╔═╡ a885bf78-0a5c-11eb-2383-9d74c8765847
 md"""
 Make sure `step!`, `position`, `color`, work on the type `SocialAgent`. If `step!` takes an untyped first argument, it should work for both Agent and SocialAgent types without any changes. We actually only need to specialize `interact!` on SocialAgent.
@@ -1169,15 +1186,18 @@ In each step call `step!` 50N times.
 # ╔═╡ 1f172700-0a42-11eb-353b-87c0039788bd
 let
 	N = 50
-	L = 40
-
-	#global social_agents = initialize_social(N, L)
-	Ss, Is, Rs = [], [], []
+	L = 40	
+	Tmax = 10_000
 	
-	Tmax = 200
+	simulation = simulate_full_sir(N, L, Tmax, pandemic, initialize_social)
 	
-	@gif for t in 1:Tmax
-
+	@gif for t in 0:50:Tmax  # This simulation runs from 0:Tmax rather than 1:Tmax
+		
+		left = visualize(simulation.states[t+1], L)
+		right = plot(simulation[1:t+1])
+		
+		plot(left, right, size=(600,300))
+		
 		# 1. Step! a lot
 		# 2. Count S, I and R, push them to Ss Is Rs
 		# 3. call visualize on the agents,
@@ -1186,6 +1206,9 @@ let
 	end
 end
 
+# ╔═╡ 2c950880-7e9a-11eb-375b-f70d2ac630c2
+md"Interesting... I got two peaks in the outbreak"
+
 # ╔═╡ b59de26c-0a41-11eb-2c67-b5f3c7780c91
 md"""
 #### Exercise 4.4
@@ -1193,7 +1216,22 @@ md"""
 """
 
 # ╔═╡ faec52a8-0a60-11eb-082a-f5787b09d88c
+let
+	N = 50
+	L = 40
+	Tmax = 10_000
+	
+	agents = initialize_social(N, L)
+	simulation = simulate_sir(agents, L, Tmax, pandemic)
+	
+	
+	scatter(get_social_score.(agents), get_num_infected.(agents), legend=false,
+		xlabel="Social score", ylabel="Number of people infected by agent"
+	)
+end
 
+# ╔═╡ 376998b0-7e9b-11eb-3b9b-23f8c8e0773c
+md"As the social score gets higher, agents tend to infect more people"
 
 # ╔═╡ b5b4d834-0a41-11eb-1b18-1bd626d18934
 md"""
@@ -1201,7 +1239,44 @@ md"""
 """
 
 # ╔═╡ a83c96e2-0a5a-11eb-0e58-15b5dda7d2d2
+function lockdown!(agents::AbstractVector{SocialAgent})
+	for a in agents
+		a.social_score *= 0.25
+	end
+	
+	return
+end
 
+# ╔═╡ 20c7b910-7e9c-11eb-3a73-730fb1c5783f
+function lift_lockdown!(agents::AbstractVector{SocialAgent})
+	for a in agents
+		a.social_score *= 4
+	end
+	
+	return
+end
+
+# ╔═╡ 3bf7ddf0-7e9c-11eb-0403-8d4455419126
+let
+	N = 50
+	L = 40
+	Tmax = 5_000
+	
+	agents = initialize_social(N, L)
+	simulation1 = simulate_sir(agents, L, Tmax ÷ 2, pandemic)
+	
+	lockdown!(agents)
+	
+	simulation2 = simulate_sir(agents, L, Tmax ÷ 2, pandemic)
+	
+	left = plot(simulation1)
+	right = plot(simulation2)
+	
+	plot(left, right)
+end
+
+# ╔═╡ 62c9f520-7e9d-11eb-2bdb-d317ce2293a5
+md"After lockdown, the infections no longer rise"
 
 # ╔═╡ 05fc5634-09a0-11eb-038e-53d63c3edaf2
 md"""
@@ -1600,6 +1675,8 @@ bigbreak
 # ╟─b53d5608-0a41-11eb-2325-016636a22f71
 # ╠═e0b81550-7e86-11eb-0e16-5d22a85ddd4c
 # ╟─c704ea4c-0aec-11eb-2f2c-859c954aa520
+# ╠═ea248f60-7e9a-11eb-20e9-693fe26f692a
+# ╠═f9ab7980-7e9a-11eb-0957-fb31aec07307
 # ╟─b554b654-0a41-11eb-0e0d-e57ff68ced33
 # ╠═c6a1c4de-7e86-11eb-221b-8fb2e5288f87
 # ╟─18ac9926-0aed-11eb-034f-e9849b71c9ac
@@ -1607,13 +1684,17 @@ bigbreak
 # ╠═0bfe5a10-7e89-11eb-12de-b33e38014545
 # ╠═5f6c3b40-7e89-11eb-3f7d-151c87891daf
 # ╠═f627af22-7e88-11eb-1257-dd5d91ca2818
-# ╟─465e918a-0a69-11eb-1b59-01150b4b0f36
 # ╟─a885bf78-0a5c-11eb-2383-9d74c8765847
 # ╠═1f172700-0a42-11eb-353b-87c0039788bd
+# ╠═2c950880-7e9a-11eb-375b-f70d2ac630c2
 # ╟─b59de26c-0a41-11eb-2c67-b5f3c7780c91
 # ╠═faec52a8-0a60-11eb-082a-f5787b09d88c
+# ╠═376998b0-7e9b-11eb-3b9b-23f8c8e0773c
 # ╟─b5b4d834-0a41-11eb-1b18-1bd626d18934
 # ╠═a83c96e2-0a5a-11eb-0e58-15b5dda7d2d2
+# ╠═20c7b910-7e9c-11eb-3a73-730fb1c5783f
+# ╠═3bf7ddf0-7e9c-11eb-0403-8d4455419126
+# ╠═62c9f520-7e9d-11eb-2bdb-d317ce2293a5
 # ╟─05fc5634-09a0-11eb-038e-53d63c3edaf2
 # ╠═24c2fb0c-0a42-11eb-1a1a-f1246f3420ff
 # ╟─c7649966-0a41-11eb-3a3a-57363cea7b06
