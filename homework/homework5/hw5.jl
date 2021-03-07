@@ -553,7 +553,7 @@ end
 
 # ╔═╡ fed9ea10-744d-11eb-122d-712b18137086
 begin
-	function visualize!(p::Plots.Plot, agents::Vector, box::Box)
+	function visualize!(p::Plots.Plot, agents, box::Box)
 		plot!(rectangle(box), alpha=0.1, linecolor="black", label=nothing)
 		scatter!(p, make_tuple.(position.(agents)),
 			group = get_status.(agents),
@@ -567,7 +567,7 @@ begin
 		)
 	end
 	
-	visualize!(p, agents, L) = visualize!(p, agents, Box(L))
+	visualize!(p, agents, L::Number) = visualize!(p, agents, Box(L))
 end
 
 # ╔═╡ 1f96c80a-0a46-11eb-0690-f51c60e57c3f
@@ -1455,9 +1455,6 @@ let
 	plot(left, right)
 end
 
-# ╔═╡ 34eb0110-7f80-11eb-3b74-897c2a8598d7
-
-
 # ╔═╡ 1486eba2-7f80-11eb-01b5-8518dfdcc840
 let
 	N = 50
@@ -1863,7 +1860,6 @@ bigbreak
 # ╠═cba2c0e0-7f7e-11eb-08e3-498f4678662b
 # ╟─c7649966-0a41-11eb-3a3a-57363cea7b06
 # ╠═2635b574-0a42-11eb-1daa-971b2596ce44
-# ╠═34eb0110-7f80-11eb-3b74-897c2a8598d7
 # ╠═1486eba2-7f80-11eb-01b5-8518dfdcc840
 # ╟─c77b085e-0a41-11eb-2fcb-534238cd3c49
 # ╠═274fe006-0a42-11eb-1869-29193bb84957
