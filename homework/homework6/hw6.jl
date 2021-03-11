@@ -21,12 +21,12 @@ begin
 			Pkg.PackageSpec(name="PlutoUI", version="0.6.7-0.6"), 
 			Pkg.PackageSpec(name="Plots", version="1.6-1"),
 			])
-	# Pkg.add("Iterators")
+	Pkg.add("IterTools")
 	
 	using Plots
 	gr()
 	using PlutoUI
-	# using Iterators
+	using IterTools
 end
 
 # ╔═╡ 048890ee-106a-11eb-1a81-5744150543e8
@@ -489,7 +489,7 @@ We want to minimize a 1D function, i.e. a function $f: \mathbb{R} \to \mathbb{R}
 # ╔═╡ a7f1829c-12e8-11eb-15a1-5de40ed92587
 function gradient_descent_1d_step(f, x0; η=0.01)
 	
-	return missing
+	return x0 - η*finite_difference_slope(f, x0)
 end
 
 # ╔═╡ d33271a2-12df-11eb-172a-bd5600265f49
@@ -514,7 +514,7 @@ md"""
 # ╔═╡ 9489009a-12e8-11eb-2fb7-97ba0bdf339c
 function gradient_descent_1d(f, x0; η=0.01, N_steps=1000)
 	
-	return missing
+	return nth(iterated(x0 -> gradient_descent_1d_step(f, x0; η=η), x0), N_steps)
 end
 
 # ╔═╡ 34dc4b02-1248-11eb-26b2-5d2610cfeb41
@@ -531,7 +531,7 @@ Right now we take a fixed number of steps, even if the minimum is found quickly.
 
 # ╔═╡ ebca11d8-12c9-11eb-3dde-c546eccf40fc
 better_stopping_idea = md"""
-blabla
+Better would be to stop when the step size $η⋅f'(x)$ goes below a threshold, or when the gradient $f'(x)$ goes below a threshold.
 """
 
 # ╔═╡ 9fd2956a-1248-11eb-266d-f558cda55702
@@ -542,16 +542,23 @@ Multivariable calculus tells us that the gradient $\nabla f(a, b)$ at a point $(
 👉 Write functions `gradient_descent_2d_step(f, x0, y0)` and `gradient_descent_2d(f, x0, y0)` that do the same for functions $f(x, y)$ of two variables.
 """
 
+# ╔═╡ afa1fbf0-82a7-11eb-1349-775f561a5008
+f((x, y)) = x - y
+
+# ╔═╡ c2706ff0-82a7-11eb-1855-ef482e30c625
+f([2, 1])
+
 # ╔═╡ 852be3c4-12e8-11eb-1bbb-5fbc0da74567
 function gradient_descent_2d_step(f, x0, y0; η=0.01)
 	
-	return missing
+	return [x0, y0] .- η*gradient(f, x0, y0)
 end
 
 # ╔═╡ 8a114ca8-12e8-11eb-2de6-9149d1d3bc3d
-function gradient_descent_2d(f, x0, y0; η=0.01)
+function gradient_descent_2d(f, x0, y0; η=0.01, N_steps=1000)
+	fstep((x, y)) = gradient_descent_2d_step(f, x, y; η=η)
 	
-	return missing
+	return nth(iterated(fstep, [x0, y0]), N_steps)
 end
 
 # ╔═╡ 4454c2b2-12e3-11eb-012c-c362c4676bf6
@@ -583,7 +590,7 @@ md"""
 """
 
 # ╔═╡ 6d1ee93e-1103-11eb-140f-63fca63f8b06
-
+md"As shown in the picture, the minimum that gradient descent finds is very much dependent on the starting point. It may find a local minimum rather than a global one"
 
 # ╔═╡ 8261eb92-106e-11eb-2ccc-1348f232f5c3
 md"""
@@ -1362,6 +1369,8 @@ end
 # ╟─e3120c18-1246-11eb-3bf4-7f4ac45856e0
 # ╠═ebca11d8-12c9-11eb-3dde-c546eccf40fc
 # ╟─9fd2956a-1248-11eb-266d-f558cda55702
+# ╠═afa1fbf0-82a7-11eb-1349-775f561a5008
+# ╠═c2706ff0-82a7-11eb-1855-ef482e30c625
 # ╠═852be3c4-12e8-11eb-1bbb-5fbc0da74567
 # ╠═8a114ca8-12e8-11eb-2de6-9149d1d3bc3d
 # ╠═92854562-1249-11eb-0b81-156982df1284
