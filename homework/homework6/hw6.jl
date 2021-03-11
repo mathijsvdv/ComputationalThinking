@@ -241,11 +241,10 @@ function euler_integrate(fprime::Function, fa::Number,
 	h = step(T)
 		
 	fa_vec = Vector{typeof(fa)}(undef, length(T))
-	fa_vec[1] = fa
 	
-	for (i, a) in Iterators.take(enumerate(T), length(T) - 1)
+	for (i, a) in Iterators.take(enumerate(T), length(T))
 		fa = euler_integrate_step(fprime, fa, a, h)
-		fa_vec[i+1] = fa
+		fa_vec[i] = fa
 	end
 
 	return fa_vec
@@ -311,11 +310,13 @@ r(t+h) &= r(t) + h\,\cdot \gamma i(t)
 # ╔═╡ 1e5ca54e-12d8-11eb-18b8-39b909584c72
 function euler_SIR_step(β, γ, sir_0::Vector, h::Number)
 	s, i, r = sir_0
+	βsi = β*s*i
+	γi = γ*i
 	
 	return [
-		missing,
-		missing,
-		missing,
+		s - h*βsi,
+		i + h*(βsi - γi),
+		r + h*γi,
 	]
 end
 
@@ -333,12 +334,18 @@ You should return a vector of vectors: a 3-element vector for each point in time
 
 # ╔═╡ 51a0138a-1244-11eb-239f-a7413e2e44e4
 function euler_SIR(β, γ, sir_0::Vector, T::AbstractRange)
-	# T is a range, you get the step size and number of steps like so:
-	h = step(T)
-	
+	# T is a range, you get the step size and number of steps like so:	
 	num_steps = length(T)
+	h = step(T)
+			
+	sir_vec = Vector{typeof(sir_0)}(undef, num_steps)
 	
-	return missing
+	for (i, a) in Iterators.take(enumerate(T), num_steps)
+		sir_0 = euler_SIR_step(β, γ, sir_0, h)
+		sir_vec[i] = sir_0
+	end
+
+	return sir_vec
 end
 
 # ╔═╡ 4b791b76-12cd-11eb-1260-039c938f5443
@@ -377,7 +384,7 @@ md"""
 
 # ╔═╡ 589b2b4c-1245-11eb-1ec7-693c6bda97c4
 default_SIR_parameters_observation = md"""
-blabla
+We see an epidemic outbreak: the number of infected individuals quickly grows to roughly 20% of the population. In the end, more than 75% of individuals (but not all) get the virus.
 """
 
 # ╔═╡ 58b45a0e-1245-11eb-04d1-23a1f3a0f242
@@ -385,8 +392,22 @@ md"""
 👉 Make an interactive visualization in which you vary $\beta$ and $\gamma$. What relation should $\beta$ and $\gamma$ have for an epidemic outbreak to occur?
 """
 
-# ╔═╡ 68274534-1103-11eb-0d62-f1acb57721bc
+# ╔═╡ 2ffc6030-829c-11eb-1f3b-7981f27e9a4f
+md"With a high infection rate β the peak is taller and happens earlier. A low recovery rate γ causes the outbreak to dissipate more slowly or not at all."
 
+# ╔═╡ 6ec5f160-829b-11eb-246c-1b5b1d538b08
+@bind β Slider(0.0:0.01:1.0, default=0.3, show_value=true)
+
+# ╔═╡ b31e47e0-829b-11eb-3bac-2deee36521bd
+@bind γ Slider(0.0:0.01:1.0, default=0.15, show_value=true)
+
+# ╔═╡ 68274534-1103-11eb-0d62-f1acb57721bc
+let
+	sir_results = euler_SIR(β, γ, 
+	[0.99, 0.01, 0.00], 
+	sir_T)
+	plot_sir!(plot(), sir_T, sir_results)
+end
 
 # ╔═╡ 82539bbe-106e-11eb-0e9e-170dfa6a7dad
 md"""
@@ -1109,7 +1130,7 @@ end |> as_svg
 # ╔═╡ 990236e0-10be-11eb-333a-d3080a224d34
 let
 	a = 1
-	h = .3
+	h = .1
 	history = euler_integrate(wavy_deriv, wavy(a), range(a; step=h, length=N_euler))
 	
 	slope = wavy_deriv(a_euler)
@@ -1310,6 +1331,9 @@ end
 # ╟─586d0352-1245-11eb-2504-05d0aa2352c6
 # ╠═589b2b4c-1245-11eb-1ec7-693c6bda97c4
 # ╟─58b45a0e-1245-11eb-04d1-23a1f3a0f242
+# ╠═2ffc6030-829c-11eb-1f3b-7981f27e9a4f
+# ╠═6ec5f160-829b-11eb-246c-1b5b1d538b08
+# ╠═b31e47e0-829b-11eb-3bac-2deee36521bd
 # ╠═68274534-1103-11eb-0d62-f1acb57721bc
 # ╟─82539bbe-106e-11eb-0e9e-170dfa6a7dad
 # ╟─b394b44e-1245-11eb-2f86-8d10113e8cfc
