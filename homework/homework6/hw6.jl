@@ -752,8 +752,14 @@ md"""
 # ╔═╡ 4837e1ae-12d2-11eb-0df9-21dcc1892fc9
 md"β = $(@bind guess_β Slider(0.00:0.0001:0.1; default = 0.05, show_value=true))"
 
+# ╔═╡ 606b2f00-84bb-11eb-0ec4-6f6369ec6f74
+# guess_β = 0.0183
+
 # ╔═╡ a9630d28-12d2-11eb-196b-773d8498b0bb
 md"γ = $(@bind guess_γ Slider(0.00:0.0001:0.01; default = 0.005, show_value=true))"
+
+# ╔═╡ 67d58790-84bb-11eb-3a58-ed751db6e507
+# guess_γ = 0.0023
 
 # ╔═╡ 23c53be4-12d4-11eb-1d39-8d11b4431993
 md"Show manual fit: $(@bind show_manual_sir_fit CheckBox())"
@@ -1443,7 +1449,9 @@ end
 # ╟─496b8816-12d3-11eb-3cec-c777ba81eb60
 # ╟─480fde46-12d4-11eb-2dfb-1b71692c7420
 # ╠═4837e1ae-12d2-11eb-0df9-21dcc1892fc9
+# ╠═606b2f00-84bb-11eb-0ec4-6f6369ec6f74
 # ╟─a9630d28-12d2-11eb-196b-773d8498b0bb
+# ╠═67d58790-84bb-11eb-3a58-ed751db6e507
 # ╟─23c53be4-12d4-11eb-1d39-8d11b4431993
 # ╟─6016fccc-12d4-11eb-0f58-b9cd331cc7b3
 # ╠═2f7d0dc0-84af-11eb-2346-092cc7e62f7c
