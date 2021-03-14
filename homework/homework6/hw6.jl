@@ -549,14 +549,14 @@ f((x, y)) = x - y
 f([2, 1])
 
 # ╔═╡ 852be3c4-12e8-11eb-1bbb-5fbc0da74567
-function gradient_descent_2d_step(f, x0, y0; η=0.01)
+function gradient_descent_2d_step(f, x0, y0; η=0.01, h=1e-3)
 	
-	return [x0, y0] .- η*gradient(f, x0, y0)
+	return [x0, y0] .- η*gradient(f, x0, y0, h)
 end
 
 # ╔═╡ 8a114ca8-12e8-11eb-2de6-9149d1d3bc3d
-function gradient_descent_2d(f, x0, y0; η=0.01, N_steps=1000)
-	fstep((x, y)) = gradient_descent_2d_step(f, x, y; η=η)
+function gradient_descent_2d(f, x0, y0; η=0.01, N_steps=1000, h=1e-3)
+	fstep((x, y)) = gradient_descent_2d_step(f, x, y; η=η, h=h)
 	
 	return nth(iterated(fstep, [x0, y0]), N_steps)
 end
@@ -664,9 +664,9 @@ $$\mathcal{L}(\mu, \sigma) := \sum_i [f_{\mu, \sigma}(x_i) - y_i]^2$$
 """
 
 # ╔═╡ 2fc55daa-124f-11eb-399e-659e59148ef5
-function loss_dice(μ, σ)
+function loss_dice(μ, σ, dice_x=dice_x, dice_y=dice_y)
 	
-	return missing
+	return sum((gauss.(dice_x, μ, σ) .- dice_y).^2)
 end
 
 # ╔═╡ 3a6ec2e4-124f-11eb-0f68-791475bab5cd
@@ -681,9 +681,8 @@ md"""
 # ╔═╡ a150fd60-124f-11eb-35d6-85104bcfd0fe
 found_μ, found_σ = let
 	
-	# your code here
-	
-	missing, missing
+	μ0, σ0 = 30, 1
+	gradient_descent_2d(loss_dice, μ0, σ0; η=1, N_steps=10_000) 
 end
 
 # ╔═╡ ac320522-124b-11eb-1552-51c2adaf2521
@@ -768,10 +767,24 @@ This time, instead of comparing two vectors of numbers, we need to compare two v
 
 """
 
+# ╔═╡ 2f7d0dc0-84af-11eb-2346-092cc7e62f7c
+sir_pred = euler_SIR(guess_β, guess_γ, hw4_results[1], hw4_T)
+
+# ╔═╡ a6b79180-84b4-11eb-0a52-e7c5b6f7b2d8
+reduce(hcat, @view(sir_pred[1:end-1]) .- @view(hw4_results[2:end])) 
+
+# ╔═╡ 5e3f9d70-84b0-11eb-1105-4dbcb9633b6e
+sum(reduce(hcat, sir_pred).^2)
+
 # ╔═╡ 754b5368-12e8-11eb-0763-e3ec56562c5f
-function loss_sir(β, γ)
+function loss_sir(β, γ, T=hw4_T, sir=hw4_results)
 	
-	return missing
+	sir_pred = euler_SIR(β, γ, sir[1], T)
+	
+	# The first element of euler_SIR actually gives the T[1]+h value
+	# So you want to compare starting from `sir[2]` and use the range 1:end-1 for 
+	# `sir_pred`
+	return sum(reduce(hcat, @view(sir_pred[1:end-1]) .- @view(sir[2:end])).^2)
 end
 
 # ╔═╡ ee20199a-12d4-11eb-1c2c-3f571bbb232e
@@ -782,13 +795,29 @@ md"""
 👉 Use this loss function to find the optimal parameters ``\beta`` and ``\gamma``.
 """
 
+# ╔═╡ da916962-84b2-11eb-1678-111b6afae2cb
+guess_β
+
 # ╔═╡ 6e1b5b6a-12e8-11eb-3655-fb10c4566cdc
 found_β, found_γ = let
 	
-	# your code here
-	
-	missing, missing
+	gradient_descent_2d(loss_sir, guess_β, guess_γ; η=1e-9, N_steps=2000, h=1e-7)
 end
+
+# ╔═╡ 8ca3b540-84b8-11eb-0671-236c7c278d95
+md"**Mathijs note:** Took me a long time to realize that η actually needed to be much smaller than 1e-6 or 1e-7 even. The problem is that the gradient in the γ direction is quite large. I found that only with η ≈ 1e-9 we get reasonable step sizes for γ. To check whether step sizes were reasonable, I compared η*gradient with the original values of `guess_β` and `guess_γ`
+
+Also, the default gradient step `h=1e-3` was much too large for this problem. It even lead to a flipped sign: the gradient in $\beta$ direction was positive for `h=1e-3` but negative for `h=1e-7`
+"
+
+# ╔═╡ 37c07220-84b8-11eb-3b3c-316ee616564e
+1e-9*gradient(loss_sir, guess_β, guess_γ, 1e-7)
+
+# ╔═╡ 48c490f2-84b9-11eb-376c-1f593f3a8a8a
+1e-9*gradient(loss_sir, found_β, found_γ, 1e-7)
+
+# ╔═╡ 18b2cf80-84b9-11eb-1d27-13a5e9527ace
+loss_sir(found_β, found_γ)
 
 # ╔═╡ b94b7610-106d-11eb-2852-25337ce6ec3a
 if student.name == "Jazzy Doe" || student.kerberos_id == "jazz"
@@ -1413,14 +1442,22 @@ end
 # ╟─c56cc19c-12ca-11eb-3c6c-7f3ea98eeb4e
 # ╟─496b8816-12d3-11eb-3cec-c777ba81eb60
 # ╟─480fde46-12d4-11eb-2dfb-1b71692c7420
-# ╟─4837e1ae-12d2-11eb-0df9-21dcc1892fc9
+# ╠═4837e1ae-12d2-11eb-0df9-21dcc1892fc9
 # ╟─a9630d28-12d2-11eb-196b-773d8498b0bb
 # ╟─23c53be4-12d4-11eb-1d39-8d11b4431993
 # ╟─6016fccc-12d4-11eb-0f58-b9cd331cc7b3
+# ╠═2f7d0dc0-84af-11eb-2346-092cc7e62f7c
+# ╠═a6b79180-84b4-11eb-0a52-e7c5b6f7b2d8
+# ╠═5e3f9d70-84b0-11eb-1105-4dbcb9633b6e
 # ╠═754b5368-12e8-11eb-0763-e3ec56562c5f
 # ╠═ee20199a-12d4-11eb-1c2c-3f571bbb232e
 # ╟─38b09bd8-12d5-11eb-2f7b-579e9db3973d
+# ╠═da916962-84b2-11eb-1678-111b6afae2cb
 # ╠═6e1b5b6a-12e8-11eb-3655-fb10c4566cdc
+# ╟─8ca3b540-84b8-11eb-0671-236c7c278d95
+# ╠═37c07220-84b8-11eb-3b3c-316ee616564e
+# ╠═48c490f2-84b9-11eb-376c-1f593f3a8a8a
+# ╠═18b2cf80-84b9-11eb-1d27-13a5e9527ace
 # ╟─106670f2-12d6-11eb-1854-5bf0fc6f4dfb
 # ╟─b94b7610-106d-11eb-2852-25337ce6ec3a
 # ╟─112eb7b2-1428-11eb-1c60-15105fa0e5fa
