@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.21
+# v0.12.18
 
 using Markdown
 using InteractiveUtils
@@ -25,12 +25,14 @@ begin
 			"Compose",
 			"Colors",
 			"PlutoUI",
+			"BenchmarkTools"
 			])
 
 	using Colors
 	using PlutoUI
 	using Compose
 	using LinearAlgebra
+	using BenchmarkTools
 end
 
 # ╔═╡ e6b6760a-f37f-11ea-3ae1-65443ef5a81a
