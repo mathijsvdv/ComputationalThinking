@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.9
+# v0.12.20
 
 using Markdown
 using InteractiveUtils
@@ -206,7 +206,7 @@ md"""
 
 # ╔═╡ a86f13de-259d-11eb-3f46-1f6fb40020ce
 observations_from_changing_B = md"""
-Hello world!
+More negative values of $B$ lead to the climate system reacting less heavily to the increase in CO₂. Compare also the equation for the outgoing thermal radiation $A - BT$: if $B$ is more negative, the outgoing thermal radiation increases at a faster rate as the temperature increases, causing a dampening effect, i.e. negative feedback. Hence one can call $B$ the *climate feedback parameter*.)
 """
 
 # ╔═╡ 3d66bd30-259d-11eb-2694-471fb3a4a7be
@@ -216,7 +216,7 @@ md"""
 
 # ╔═╡ 5f82dec8-259e-11eb-2f4f-4d661f44ef41
 observations_from_nonnegative_B = md"""
-Hello world!
+If $B$ is greater than or equal to zero, the outgoing thermal radiation decreases as the temperature increases, causing a runaway effect where the temperature of the system increases, causing the system to radiate less heat and heat up faster.
 """
 
 # ╔═╡ 56b68356-2601-11eb-39a9-5f4b8e580b87
@@ -234,9 +234,6 @@ md"""
 👉 Create a graph to visualize ECS as a function of B. 
 """
 
-# ╔═╡ b9f882d8-266b-11eb-2998-75d6539088c7
-
-
 # ╔═╡ 269200ec-259f-11eb-353b-0b73523ef71a
 md"""
 #### Exercise 1.2 - _Doubling CO₂_
@@ -252,13 +249,6 @@ The CO₂ concentrations in the _future_ depend on human action. There are sever
 md"""
 👉 In what year are we expected to have doubled the CO₂ concentration, under policy scenario RCP8.5?
 """
-
-# ╔═╡ 50ea30ba-25a1-11eb-05d8-b3d579f85652
-expected_double_CO2_year = let
-	
-	
-	missing
-end
 
 # ╔═╡ bade1372-25a1-11eb-35f4-4b43d4e8d156
 md"""
@@ -305,6 +295,12 @@ let
 		label="ΔT(t) = T(t) - T₀")
 end |> as_svg
 
+# ╔═╡ b9f882d8-266b-11eb-2998-75d6539088c7
+let
+	B_vec = -2.5:.001:2.5
+	plot(B_vec, ECS(B=B_vec), label = "ECS", xlabel="B [W/m²/°C]", ylabel="Temperature change [°C]")
+end
+
 # ╔═╡ 736ed1b6-1fc2-11eb-359e-a1be0a188670
 B_samples = let
 	B_distribution = Normal(B̅, σ)
@@ -324,13 +320,13 @@ md"""
 """
 
 # ╔═╡ 3d72ab3a-2689-11eb-360d-9b3d829b78a9
-ECS_samples = missing
+ECS_samples = ECS(B=B_samples)
 
 # ╔═╡ b6d7a362-1fc8-11eb-03bc-89464b55c6fc
 md"**Answer:**"
 
 # ╔═╡ 1f148d9a-1fc8-11eb-158e-9d784e390b24
-
+histogram(ECS_samples, size=(600, 250), label=nothing, xlabel="ECS [Δ°C]", ylabel="samples")
 
 # ╔═╡ cf8dca6c-1fc8-11eb-1f89-099e6ba53c22
 md"It looks like the ECS distribution is **not normally distributed**, even though $B$ is. 
@@ -339,14 +335,23 @@ md"It looks like the ECS distribution is **not normally distributed**, even thou
 "
 
 # ╔═╡ 02173c7a-2695-11eb-251c-65efb5b4a45f
+(mean(ECS_samples), ECS(B=B̅))
 
+# ╔═╡ 52ac3860-93c9-11eb-02c2-15d07d963774
+mean(ECS_samples .> ECS(B=B̅))
+
+# ╔═╡ 8753fcb0-93c9-11eb-1db7-c3376e30f4fb
+md"The mean of the ECS samples $\overline{\text{ECS}(B)}$ is quite a bit higher than the ECS of the mean $\text{ECS}(\overline{B})$. However, the probability that $\text{ECS}(B)$ lies above $\text{ECS}(\overline{B})$ is 50% given the normal distribution of $B$. 
+
+The reason that the mean of the ECS samples is higher is because of Jensen's inequality: for negative $B$ this is a convex function applied to a random variable. As such the function applied to the mean is less than or equal to the mean applied after the function. 
+"
 
 # ╔═╡ 440271b6-25e8-11eb-26ce-1b80aa176aca
 md"👉 Does accounting for uncertainty in feedbacks make our expectation of global warming better (less implied warming) or worse (more implied warming)?"
 
 # ╔═╡ cf276892-25e7-11eb-38f0-03f75c90dd9e
 observations_from_the_order_of_averaging = md"""
-Hello world!
+By accounting for uncertainty in feedbacks, the expectation of global warming (if we can summarize it in terms of the ECS) is worse (more implied warming), because the expected ECS given the distribution of $B$ is higher than the ECS applied to the expected $B$ (which is what would have been used if uncertainty wasn't taken into account). 
 """
 
 # ╔═╡ 5b5f25f0-266c-11eb-25d4-17e411c850c9
@@ -483,6 +488,12 @@ t = 1850:2100
 # ╔═╡ e10a9b70-25a0-11eb-2aed-17ed8221c208
 plot(t, Model.CO2_RCP85.(t), 
 	ylim=(0,1200), ylabel="CO2 concentration [ppm]")
+
+# ╔═╡ 50ea30ba-25a1-11eb-05d8-b3d579f85652
+expected_double_CO2_year = let
+	i = findfirst(Model.CO2_RCP85.(t) .>= 2*Model.CO2_PI)
+	t[i]
+end
 
 # ╔═╡ 40f1e7d8-252d-11eb-0549-49ca4e806e16
 @bind t_scenario_test Slider(t; show_value=true, default=1850)
@@ -772,17 +783,17 @@ TODO = html"<span style='display: inline; font-size: 2em; color: purple; font-we
 # ╠═1e06178a-1fbf-11eb-32b3-61769a79b7c0
 # ╟─87e68a4a-2433-11eb-3e9d-21675850ed71
 # ╟─fe3304f8-2668-11eb-066d-fdacadce5a19
-# ╟─930d7154-1fbf-11eb-1c3a-b1970d291811
+# ╠═930d7154-1fbf-11eb-1c3a-b1970d291811
 # ╟─1312525c-1fc0-11eb-2756-5bc3101d2260
 # ╠═c4398f9c-1fc4-11eb-0bbb-37f066c6027d
 # ╟─7f961bc0-1fc5-11eb-1f18-612aeff0d8df
 # ╟─25f92dec-1fc4-11eb-055d-f34deea81d0e
-# ╟─fa7e6f7e-2434-11eb-1e61-1b1858bb0988
+# ╠═fa7e6f7e-2434-11eb-1e61-1b1858bb0988
 # ╟─16348b6a-1fc2-11eb-0b9c-65df528db2a1
 # ╟─e296c6e8-259c-11eb-1385-53f757f4d585
 # ╠═a86f13de-259d-11eb-3f46-1f6fb40020ce
 # ╟─3d66bd30-259d-11eb-2694-471fb3a4a7be
-# ╠═5f82dec8-259e-11eb-2f4f-4d661f44ef41
+# ╟─5f82dec8-259e-11eb-2f4f-4d661f44ef41
 # ╟─56b68356-2601-11eb-39a9-5f4b8e580b87
 # ╟─7d815988-1fc7-11eb-322a-4509e7128ce3
 # ╟─aed8f00e-266b-11eb-156d-8bb09de0dc2b
@@ -802,8 +813,10 @@ TODO = html"<span style='display: inline; font-size: 2em; color: purple; font-we
 # ╠═1f148d9a-1fc8-11eb-158e-9d784e390b24
 # ╟─cf8dca6c-1fc8-11eb-1f89-099e6ba53c22
 # ╠═02173c7a-2695-11eb-251c-65efb5b4a45f
+# ╠═52ac3860-93c9-11eb-02c2-15d07d963774
+# ╟─8753fcb0-93c9-11eb-1db7-c3376e30f4fb
 # ╟─440271b6-25e8-11eb-26ce-1b80aa176aca
-# ╠═cf276892-25e7-11eb-38f0-03f75c90dd9e
+# ╟─cf276892-25e7-11eb-38f0-03f75c90dd9e
 # ╟─5b5f25f0-266c-11eb-25d4-17e411c850c9
 # ╟─3f823490-266d-11eb-1ba4-d5a23975c335
 # ╟─971f401e-266c-11eb-3104-171ae299ef70
