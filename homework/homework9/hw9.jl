@@ -363,7 +363,7 @@ In the lecture notebook we introduced a _mutable struct_ `EBM` (_energy balance 
 - a function `CO2`, which maps a time `t` to the concentrations at that year. For example, we use the function `t -> 280` to simulate a model with concentrations fixed at 280 ppm.
 
 `EBM` also contains the simulation results, in two arrays:
-- `T` is the array of tempartures (°C, `Float64`).
+- `T` is the array of temperatures (°C, `Float64`).
 - `t` is the array of timestamps (years, `Float64`), of the same size as `T`.
 """
 
@@ -439,12 +439,13 @@ In this simulation, we used `T0 = 14` and `CO2 = t -> 280`, which is why `T` is 
 
 # ╔═╡ 9596c2dc-2671-11eb-36b9-c1af7e5f1089
 simulated_rcp85_model = let
-	
-	missing
+	ebm = Model.EBM(14.0, 1850, 1, Model.CO2_RCP85)
+	Model.run!(ebm, 2100)
+	ebm
 end
 
 # ╔═╡ f94a1d56-2671-11eb-2cdc-810a9c7a8a5f
-
+md"The global temperature at 2100 is 3.5°C higher at 17°C."
 
 # ╔═╡ 4b091fac-2672-11eb-0db8-75457788d85e
 md"""
@@ -463,8 +464,10 @@ md"""
 
 # ╔═╡ f688f9f2-2671-11eb-1d71-a57c9817433f
 function temperature_response(CO2::Function, B::Float64=-1.3)
+	ebm = Model.EBM(14.0, 1850, 1.0, CO2, B=B)
+	Model.run!(ebm, 2100)
 	
-	return missing
+	return ebm.T[end]
 end
 
 # ╔═╡ 049a866e-2672-11eb-29f7-bfea7ad8f572
@@ -475,6 +478,12 @@ temperature_response(Model.CO2_RCP85)
 
 # ╔═╡ aea0d0b4-2672-11eb-231e-395c863827d3
 temperature_response(Model.CO2_RCP85, -1.0)
+
+# ╔═╡ 49c51350-9457-11eb-11f3-7db15c13c593
+temperature_response(Model.CO2_RCP85, -1.8)
+
+# ╔═╡ 63edda50-9457-11eb-0684-e7e603465908
+temperature_response(Model.CO2_RCP85, -2.0)
 
 # ╔═╡ 9c32db5c-1fc9-11eb-029a-d5d554de1067
 md"""#### Exercise 1.6 - _Application to policy relevant questions_
@@ -501,16 +510,89 @@ end
 # ╔═╡ 19957754-252d-11eb-1e0a-930b5208f5ac
 Model.CO2_RCP26(t_scenario_test), Model.CO2_RCP85(t_scenario_test)
 
+# ╔═╡ f7735b10-9457-11eb-3a03-cbb75f9c875e
+md"Notice how the RCP8.5 scenario leads to roughly a 4-fold increase in CO2 levels wrt the pre-industrial levels by 2100! The RCP2.6 scenario stays below a 2-fold increase"
+
 # ╔═╡ 06c5139e-252d-11eb-2645-8b324b24c405
 md"""
-We are interested in how the **uncertainty in our input** $B$ (the climate feedback paramter) *propagates* through our model to determine the **uncertainty in our output** $T(t)$, for a given emissions scenario. The goal of this exercise is to answer the following by using *Monte Carlo Simulation* for *uncertainty propagation*:
+We are interested in how the **uncertainty in our input** $B$ (the climate feedback parameter) *propagates* through our model to determine the **uncertainty in our output** $T(t)$, for a given emissions scenario. The goal of this exercise is to answer the following by using *Monte Carlo Simulation* for *uncertainty propagation*:
 
 > 👉 What is the probability that we see more than 2°C of warming by 2100 under the low-emissions scenario RCP2.6? What about under the high-emissions scenario RCP8.5?
 
 """
 
 # ╔═╡ f2e55166-25ff-11eb-0297-796e97c62b07
+function warming_response(CO2::Function, B::Float64=-1.3)
+	T_start = 14.0
+	ebm = Model.EBM(T_start, 1850, 1.0, CO2, B=B)
+	Model.run!(ebm, 2100)
+	
+	return ebm.T[end] - T_start 
+end
 
+# ╔═╡ 4b7dade0-9459-11eb-23a4-c717ca79fd4c
+abstract type AbstractDistribution end
+
+# ╔═╡ 8c2c79d2-9458-11eb-30cc-f77bec4ab12d
+struct EmpiricalDistribution{T<:AbstractVector} <: AbstractDistribution
+	sample::T
+	function EmpiricalDistribution(sample)
+		if !issorted(sample)
+			sample = sort(sample)
+		end
+		return new{typeof(sample)}(sample)
+	end
+end
+
+# ╔═╡ 00e00bf2-945b-11eb-0618-cbe952dd2d4c
+searchsortedlast([1, 2, 4, 5, 5, 7], 3)
+
+# ╔═╡ ff0b5de0-9458-11eb-1049-653fcc687cdd
+function cdf(dist::EmpiricalDistribution, x)
+	i = searchsortedlast(dist.sample, x)
+	return i / length(dist.sample)
+end
+
+# ╔═╡ f9f1af3e-945c-11eb-2905-b79d80372921
+ccdf(dist::AbstractDistribution, x) = 1 - cdf(dist, x)
+
+# ╔═╡ 12c4edd0-945c-11eb-2173-8df1573f55b8
+cdf(EmpiricalDistribution([1, 2, 4, 5, 5, 7]), 4)
+
+# ╔═╡ 5c37b970-945c-11eb-20de-9fab91e2959d
+cdf(EmpiricalDistribution([1, 2, 4, 5, 5, 7]), 5)
+
+# ╔═╡ 60e981b0-945c-11eb-0eb6-eda892c6d1d8
+cdf(EmpiricalDistribution([1, 2, 4, 5, 5, 7]), 3)
+
+# ╔═╡ 6445a500-945c-11eb-15cb-0f4a2ca8d858
+cdf(EmpiricalDistribution([1, 2, 4, 5, 5, 7]), 9)
+
+# ╔═╡ 67653480-945c-11eb-2939-9b43d3c2a5e7
+cdf(EmpiricalDistribution([1, 2, 4, 5, 5, 7]), 0)
+
+# ╔═╡ 7e080910-945c-11eb-17fb-bd7fa003fd06
+let
+	response = warming_response.(Model.CO2_RCP85, B_samples)
+	response_dist = EmpiricalDistribution(response)
+	ccdf(response_dist, 2.0)
+end
+
+# ╔═╡ 9b081682-945d-11eb-10f2-ef3e04001550
+let
+	response = warming_response.(Model.CO2_RCP85, B_samples)
+	response_dist = EmpiricalDistribution(response)
+end
+
+# ╔═╡ 13fc3fe0-945d-11eb-089b-d5cea0fddea1
+let
+	response = warming_response.(Model.CO2_RCP26, B_samples)
+	response_dist = EmpiricalDistribution(response)
+	ccdf(response_dist, 2.0)
+end
+
+# ╔═╡ 32b4c830-945d-11eb-1880-5f25c4cea9e8
+md"So the probability of exceeding 2°C warming by 2100 is 64% for the RCP8.5 scenario, and 48% for the RCP2.6 scenario"
 
 # ╔═╡ 1ea81214-1fca-11eb-2442-7b0b448b49d6
 md"""
@@ -832,12 +914,29 @@ TODO = html"<span style='display: inline; font-size: 2em; color: purple; font-we
 # ╠═049a866e-2672-11eb-29f7-bfea7ad8f572
 # ╠═09901de6-2672-11eb-3d50-05b176b729e7
 # ╠═aea0d0b4-2672-11eb-231e-395c863827d3
-# ╟─9c32db5c-1fc9-11eb-029a-d5d554de1067
+# ╠═49c51350-9457-11eb-11f3-7db15c13c593
+# ╠═63edda50-9457-11eb-0684-e7e603465908
+# ╠═9c32db5c-1fc9-11eb-029a-d5d554de1067
 # ╠═19957754-252d-11eb-1e0a-930b5208f5ac
 # ╠═40f1e7d8-252d-11eb-0549-49ca4e806e16
 # ╟─ee1be5dc-252b-11eb-0865-291aa823b9e9
+# ╠═f7735b10-9457-11eb-3a03-cbb75f9c875e
 # ╟─06c5139e-252d-11eb-2645-8b324b24c405
 # ╠═f2e55166-25ff-11eb-0297-796e97c62b07
+# ╠═4b7dade0-9459-11eb-23a4-c717ca79fd4c
+# ╠═f9f1af3e-945c-11eb-2905-b79d80372921
+# ╠═8c2c79d2-9458-11eb-30cc-f77bec4ab12d
+# ╠═00e00bf2-945b-11eb-0618-cbe952dd2d4c
+# ╠═ff0b5de0-9458-11eb-1049-653fcc687cdd
+# ╠═12c4edd0-945c-11eb-2173-8df1573f55b8
+# ╠═5c37b970-945c-11eb-20de-9fab91e2959d
+# ╠═60e981b0-945c-11eb-0eb6-eda892c6d1d8
+# ╠═6445a500-945c-11eb-15cb-0f4a2ca8d858
+# ╠═67653480-945c-11eb-2939-9b43d3c2a5e7
+# ╠═7e080910-945c-11eb-17fb-bd7fa003fd06
+# ╠═9b081682-945d-11eb-10f2-ef3e04001550
+# ╠═13fc3fe0-945d-11eb-089b-d5cea0fddea1
+# ╠═32b4c830-945d-11eb-1880-5f25c4cea9e8
 # ╟─1ea81214-1fca-11eb-2442-7b0b448b49d6
 # ╟─a0ef04b0-25e9-11eb-1110-cde93601f712
 # ╟─3e310cf8-25ec-11eb-07da-cb4a2c71ae34
