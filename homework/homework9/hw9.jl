@@ -463,8 +463,8 @@ md"""
 """
 
 # ╔═╡ f688f9f2-2671-11eb-1d71-a57c9817433f
-function temperature_response(CO2::Function, B::Float64=-1.3)
-	ebm = Model.EBM(14.0, 1850, 1.0, CO2, B=B)
+function temperature_response(CO2::Function, B::Float64=-1.3; T0=14.0)
+	ebm = Model.EBM(T0, 1850, 1.0, CO2, B=B)
 	Model.run!(ebm, 2100)
 	
 	return ebm.T[end]
@@ -522,12 +522,8 @@ We are interested in how the **uncertainty in our input** $B$ (the climate feedb
 """
 
 # ╔═╡ f2e55166-25ff-11eb-0297-796e97c62b07
-function warming_response(CO2::Function, B::Float64=-1.3)
-	T_start = 14.0
-	ebm = Model.EBM(T_start, 1850, 1.0, CO2, B=B)
-	Model.run!(ebm, 2100)
-	
-	return ebm.T[end] - T_start 
+function warming_response(CO2::Function, B::Float64=-1.3; T0=14.0)
+	return temperature_response(CO2, B, T0=T0) - T0
 end
 
 # ╔═╡ 4b7dade0-9459-11eb-23a4-c717ca79fd4c
