@@ -23,11 +23,13 @@ begin
 			"LaTeXStrings",
 			"Distributions",
 			"Random",
+			"Roots"
 	])
 	using LaTeXStrings
 	using Plots
 	using PlutoUI
 	using Random, Distributions
+	using Roots
 end
 
 # ╔═╡ 169727be-2433-11eb-07ae-ab7976b5be90
@@ -618,6 +620,12 @@ md"""
 Below we have an empty diagram, which is already set up with a CO₂ vs $T$ diagram, with a logirthmic horizontal axis. Now it's your turn! We have written some pointers below to help you, but feel free to do it your own way.
 """
 
+# ╔═╡ ac239090-9f64-11eb-1a57-3d5fbc6fff73
+CO2_history = Float64[]
+
+# ╔═╡ c731fca2-9f64-11eb-2263-75a45ba82687
+T_history = Float64[]
+
 # ╔═╡ 3cbc95ba-2685-11eb-3810-3bf38aa33231
 md"""
 We used two helper functions:
@@ -666,6 +674,20 @@ function add_reference_points!(p)
 	)
 end
 
+# ╔═╡ 0141d650-9f64-11eb-2aad-d304a3e45ff3
+function add_trail!(p, CO2, T)
+	i_min = max(length(CO2) - 50, 1)
+	last_CO2 = CO2[i_min:end]
+	last_T = T[i_min:end]
+	
+	plot!(p, last_CO2, last_T,
+		label=nothing,
+		color=:black,
+		linealpha=(0.5-(length(last_CO2)-1)*0.05):0.05:0.5,
+		linewidth=(7-(length(last_CO2)-1)*0.1):0.1:4
+		)
+end
+
 # ╔═╡ 1eabe908-268b-11eb-329b-b35160ec951e
 md"""
 👉 Create a slider for `CO2` between `CO2min` and `CO2max`. Just like the horizontal axis of our plot, we want the slider to be _logarithmic_. 
@@ -689,7 +711,7 @@ end
 function step_model!(ebm::Model.EBM, CO2::Real)
 	reset_model!(ebm)
 	ebm.CO2 = (t -> CO2)
-	Model.run!(ebm)	
+	Model.run!(ebm)
 end
 
 # ╔═╡ 8b06b944-268c-11eb-0bfc-8d4dd21e1f02
@@ -744,8 +766,12 @@ function add_cool_warm_branches!(p, log_CO2_range)
 	cool_branch_t, cool_branch_T = calculate_branch(ebm, log_CO2_range)
 	warm_branch_t, warm_branch_T = calculate_branch(ebm, reverse(log_CO2_range))
 	
-	plot!(p, cool_branch_t, cool_branch_T, color=:blue, label="Cool branch")
-	plot!(p, warm_branch_t, warm_branch_T, color=:red, label="Warm branch")
+	plot!(p, cool_branch_t, cool_branch_T, color=:blue, label="Cool branch",
+		linealpha=0.2, linewidth=8,
+	)
+	plot!(p, warm_branch_t, warm_branch_T, color=:red, label="Warm branch",
+		linealpha=0.2, linewidth=8
+	)
 end
 
 # ╔═╡ 378aed18-252b-11eb-0b37-a3b511af2cb5
@@ -771,6 +797,10 @@ let
 		color=:black,
 		shape=:circle,
 	)
+	
+	push!(CO2_history, ebm.CO2(ebm.t[end]))
+	push!(T_history, ebm.T[end])
+	add_trail!(p, CO2_history, T_history)
 	
 end |> as_svg
 
@@ -812,10 +842,44 @@ md"""
 👉 Find the **lowest CO₂ concentration** necessary to melt the Snowball, programatically.
 """
 
+# ╔═╡ fe29a78e-9f68-11eb-0aba-191575b66f5e
+function equilibrium_temperature(CO2)
+	ebm = Model.EBM(Tneo, 0., 5., Model.CO2_const)
+	step_model!(ebm, CO2)
+	return ebm.T[end]
+end
+
 # ╔═╡ 9eb07a6e-2687-11eb-0de3-7bc6aa0eefb0
 co2_to_melt_snowball = let
+	for logCO2 in log_CO2_range
+		CO2 = 10^logCO2
+		equilibrium_temperature(CO2) > -10. && break
+	end
 	
-	missing
+	CO2
+end
+
+# ╔═╡ 7257d280-9f6a-11eb-3391-cbb153452b59
+let
+	for logCO2 in log_CO2_range
+		CO2 = 10^logCO2
+		equilibrium_temperature(CO2) > 10. && break
+	end
+	
+	CO2
+end
+
+# ╔═╡ 34e77aa0-9f69-11eb-11ba-cb8eeb00e5ad
+let
+	f(CO2) = equilibrium_temperature(CO2) + 10  # Solve for -10°C
+	CO2 = find_zero(f, 10.)
+end
+
+# ╔═╡ 2d24fa7e-9f6a-11eb-2555-bd08dd301d12
+let
+	# Alternatively, solve for 10°C for completely melted ice caps
+	f(CO2) = equilibrium_temperature(CO2) - 10  
+	CO2 = find_zero(f, 10.)
 end
 
 # ╔═╡ 3a35598a-2527-11eb-37e5-3b3e4c63c4f7
@@ -977,16 +1041,19 @@ TODO = html"<span style='display: inline; font-size: 2em; color: purple; font-we
 # ╟─a0ef04b0-25e9-11eb-1110-cde93601f712
 # ╟─3e310cf8-25ec-11eb-07da-cb4a2c71ae34
 # ╟─d6d1b312-2543-11eb-1cb2-e5b801686ffb
-# ╠═378aed18-252b-11eb-0b37-a3b511af2cb5
-# ╟─3cbc95ba-2685-11eb-3810-3bf38aa33231
-# ╟─68b2a560-2536-11eb-0cc4-27793b4d6a70
-# ╟─0e19f82e-2685-11eb-2e99-0d094c1aa520
-# ╟─9f5e0a00-9f5c-11eb-03be-294b499b6d14
-# ╟─39942d10-9f59-11eb-1bec-1f09a912143c
-# ╟─1eabe908-268b-11eb-329b-b35160ec951e
-# ╠═f7d94850-9f59-11eb-0780-0f8cb3d49797
+# ╟─ac239090-9f64-11eb-1a57-3d5fbc6fff73
+# ╟─c731fca2-9f64-11eb-2263-75a45ba82687
 # ╠═1d388372-2695-11eb-3068-7b28a2ccb9ac
 # ╟─5810b010-9f54-11eb-043e-0f8873b9b545
+# ╠═378aed18-252b-11eb-0b37-a3b511af2cb5
+# ╟─3cbc95ba-2685-11eb-3810-3bf38aa33231
+# ╠═68b2a560-2536-11eb-0cc4-27793b4d6a70
+# ╟─0e19f82e-2685-11eb-2e99-0d094c1aa520
+# ╟─9f5e0a00-9f5c-11eb-03be-294b499b6d14
+# ╠═39942d10-9f59-11eb-1bec-1f09a912143c
+# ╟─0141d650-9f64-11eb-2aad-d304a3e45ff3
+# ╟─1eabe908-268b-11eb-329b-b35160ec951e
+# ╠═f7d94850-9f59-11eb-0780-0f8cb3d49797
 # ╟─53c2eaf6-268b-11eb-0899-b91c03713da4
 # ╠═06d28052-2531-11eb-39e2-e9613ab0401c
 # ╟─4c9173ac-2685-11eb-2129-99071821ebeb
@@ -1003,7 +1070,11 @@ TODO = html"<span style='display: inline; font-size: 2em; color: purple; font-we
 # ╠═607058ec-253c-11eb-0fb6-add8cfb73a4f
 # ╟─9c1f73e0-268a-11eb-2bf1-216a5d869568
 # ╟─11096250-2544-11eb-057b-d7112f20b05c
+# ╠═fe29a78e-9f68-11eb-0aba-191575b66f5e
 # ╠═9eb07a6e-2687-11eb-0de3-7bc6aa0eefb0
+# ╠═7257d280-9f6a-11eb-3391-cbb153452b59
+# ╠═34e77aa0-9f69-11eb-11ba-cb8eeb00e5ad
+# ╠═2d24fa7e-9f6a-11eb-2555-bd08dd301d12
 # ╟─cb15cd88-25ed-11eb-2be4-f31500a726c8
 # ╟─232b9bec-2544-11eb-0401-97a60bb172fc
 # ╟─3a35598a-2527-11eb-37e5-3b3e4c63c4f7
