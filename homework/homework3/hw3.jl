@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.18
+# v0.12.20
 
 using Markdown
 using InteractiveUtils
@@ -1270,7 +1270,7 @@ bigbreak
 # ╟─571d28d6-f960-11ea-1b2e-d5977ecbbb11
 # ╠═6a64ab12-f960-11ea-0d92-5b88943cdb1a
 # ╟─603741c2-f9a4-11ea-37ce-1b36ecc83f45
-# ╠═b3de6260-f9a4-11ea-1bae-9153a92c3fe5
+# ╟─b3de6260-f9a4-11ea-1bae-9153a92c3fe5
 # ╠═a742cc30-6323-11eb-3291-63832138f259
 # ╠═95b5d8de-6323-11eb-1c51-970aab65ecbc
 # ╠═a6c36bd6-f9a4-11ea-1aba-f75cecc90320
@@ -1287,7 +1287,7 @@ bigbreak
 # ╟─8ae13cf0-f9a8-11ea-3919-a735c4ed9e7f
 # ╟─343d63c2-fb58-11ea-0cce-efe1afe070c2
 # ╟─b5b8dd18-f938-11ea-157b-53b145357fd1
-# ╠═0e872a6c-f937-11ea-125e-37958713a495
+# ╟─0e872a6c-f937-11ea-125e-37958713a495
 # ╟─77623f3e-f9a9-11ea-2f46-ff07bd27cd5f
 # ╠═fbb7c04e-f92d-11ea-0b81-0be20da242c8
 # ╠═80118bf8-f931-11ea-34f3-b7828113ffd8
